@@ -1,6 +1,10 @@
 name: Release Builds
 
 on:
+  push:
+    branches:
+      - master
+      - main
   release:
     types:
       - published
@@ -39,9 +43,14 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build and upload release artifacts
+        if: github.event_name == 'release'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           releaseId: ${{ github.event.release.id }}
           tauriScript: pnpm tauri
+
+      - name: Build (push to main/master)
+        if: github.event_name == 'push'
+        run: pnpm tauri build
