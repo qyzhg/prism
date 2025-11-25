@@ -191,6 +191,14 @@ const togglePin = async () => {
   }
 };
 
+const hideToTray = async () => {
+  try {
+    await getCurrentWindow().hide();
+  } catch (error) {
+    console.error("隐藏窗口失败:", error);
+  }
+};
+
 // 区域截图功能
 const areaScreenshot = async () => {
   try {
@@ -488,7 +496,7 @@ onUnmounted(() => {
     <!-- 顶部标题栏 -->
     <TitleBar 
       @minimize="() => getCurrentWindow().minimize()"
-      @close="() => getCurrentWindow().close()"
+      @close="hideToTray"
     />
 
     <!-- 主内容区 -->

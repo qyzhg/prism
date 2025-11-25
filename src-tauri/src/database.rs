@@ -93,8 +93,6 @@ impl Database {
         Ok(db)
     }
 
-
-
     fn init_tables(&self) -> Result<()> {
         let conn = self.conn.lock().unwrap();
 
@@ -299,12 +297,12 @@ impl Database {
         println!("正在保存应用配置到数据库...");
         let config_json = serde_json::to_string(config)
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
-        
+
         match self.save_setting("app_config", &config_json) {
             Ok(_) => {
                 println!("配置已保存到数据库");
                 Ok(())
-            },
+            }
             Err(e) => {
                 eprintln!("保存配置到数据库失败: {}", e);
                 Err(e)
@@ -405,4 +403,3 @@ fn resolve_app_data_dir(app_handle: &AppHandle) -> std::io::Result<PathBuf> {
     dir.push(&identifier);
     Ok(dir)
 }
-
