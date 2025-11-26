@@ -111,9 +111,9 @@ async fn handle_area_ocr_shortcut(app_handle: AppHandle) {
 }
 
 async fn handle_slide_translation_shortcut(app_handle: AppHandle) {
-    let _ = show_main_window(&app_handle);
-
+    // Copy the selected text before focusing our window so we don't lose the original selection.
     let selected_text = capture_selected_text();
+    let _ = show_main_window(&app_handle);
 
     if let Some(text) = selected_text {
         if let Some(window) = app_handle.get_webview_window("main") {
@@ -130,6 +130,121 @@ fn show_main_window(app_handle: &AppHandle) -> Option<WebviewWindow> {
 }
 
 fn capture_selected_text() -> Option<String> {
+    capture_selected_text_without_clipboard().or_else(capture_selected_text_via_clipboard)
+}
+
+#[cfg(target_os = "macos")]
+fn capture_selected_text_without_clipboard() -> Option<String> {
+    capture_selected_text_macos()
+}
+
+#[cfg(target_os = "windows")]
+fn capture_selected_text_without_clipboard() -> Option<String> {
+    capture_selected_text_windows()
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn capture_selected_text_without_clipboard() -> Option<String> {
+    None
+}
+
+#[cfg(target_os = "macos")]
+fn capture_selected_text_macos() -> Option<String> {
+    use std::process::Command;
+
+    let script = r#"
+        set selectedText to ""
+        try
+            tell application "System Events"
+                set frontApp to first application process whose frontmost is true
+                set focusedElement to value of attribute "AXFocusedUIElement" of frontApp
+                try
+                    set selectedText to value of attribute "AXSelectedText" of focusedElement
+                on error
+                    try
+                        set selectedText to value of attribute "AXValue" of focusedElement
+                    on error
+                        set selectedText to ""
+                    end try
+                end try
+            end tell
+        end try
+        selectedText
+    "#;
+
+    let output = Command::new("osascript")
+        .arg("-e")
+        .arg(script)
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let text = String::from_utf8_lossy(&output.stdout)
+        .trim()
+        .trim_matches('\u{0}')
+        .to_string();
+    if text.is_empty() || text == "missing value" {
+        None
+    } else {
+        Some(text)
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn capture_selected_text_windows() -> Option<String> {
+    use std::process::Command;
+
+    let script = r#"
+        Add-Type -AssemblyName UIAutomationClient | Out-Null
+        $focused = [System.Windows.Automation.AutomationElement]::FocusedElement
+        if ($null -ne $focused) {
+            $textPattern = $null
+            try {
+                $textPattern = $focused.GetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern)
+            } catch {}
+            if ($null -ne $textPattern) {
+                $ranges = $textPattern.GetSelection()
+                if ($ranges.Length -gt 0) {
+                    $txt = $ranges[0].GetText(-1)
+                    if ($txt) { $txt }
+                }
+            } else {
+                $valuePattern = $null
+                try {
+                    $valuePattern = $focused.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+                } catch {}
+                if ($null -ne $valuePattern) {
+                    $txt = $valuePattern.Current.Value
+                    if ($txt) { $txt }
+                }
+            }
+        }
+    "#;
+
+    let output = Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let text = String::from_utf8_lossy(&output.stdout)
+        .trim()
+        .trim_matches('\u{0}')
+        .to_string();
+    if text.is_empty() {
+        None
+    } else {
+        Some(text)
+    }
+}
+
+fn capture_selected_text_via_clipboard() -> Option<String> {
     trigger_copy_shortcut();
     std::thread::sleep(std::time::Duration::from_millis(120));
 
