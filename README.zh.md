@@ -96,8 +96,8 @@ pnpm tauri build
 
 | 平台 | 下载链接 |
 |------|---------|
-| 🪟 Windows | [最新版本](https://github.com/yourusername/prism/releases) |
-| 🍎 macOS | [最新版本](https://github.com/yourusername/prism/releases) |
+| 🪟 Windows | [最新版本](https://github.com/qyzhg/prism/releases) |
+| 🍎 macOS | [最新版本](https://github.com/qyzhg/prism/releases) |
 | 🐧 Linux | 敬请期待 |
 
 ---
@@ -132,6 +132,8 @@ pnpm tauri build
 - [ ] 批量文件翻译
 - [ ] 插件生态系统
 - [ ] 移动端配套应用
+- [ ] 代理
+- [ ] 自带魔法的国际AI支持(有成本,可能不会免费)
 
 ---
 
@@ -181,7 +183,7 @@ A: 快捷键功能目前正在开发中，即将推出。
 
 ## 获取帮助
 
-- 🐛 问题反馈：[GitHub Issues](https://github.com/yourusername/prism/issues)
+- 🐛 问题反馈：[GitHub Issues](https://github.com/qyzhg/prism/issues)
 
 ---
 
