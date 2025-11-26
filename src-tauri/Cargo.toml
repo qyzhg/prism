@@ -31,5 +31,5 @@ base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 screenshots = "0.8"
 tauri-plugin-global-shortcut = "2.3"
-arboard = "3.4"
+arboard = "3.6"
 dirs = "6.0"

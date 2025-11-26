@@ -1,12 +1,18 @@
 use crate::{
     app_state::AppState, commands::start_area_selection, database, system_tray::show_main_window,
 };
-use arboard::Clipboard;
 use std::str::FromStr;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 const PREFILL_EVENT: &str = "prefill-text";
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+const COPY_SHORTCUT_ATTEMPTS: usize = 3;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+const COPY_RETRY_BASE_DELAY_MS: u64 = 180;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+const COPY_RETRY_DELAY_STEP_MS: u64 = 90;
 
 pub fn register_shortcuts(app: &AppHandle) {
     eprintln!("register_shortcuts()");
@@ -116,7 +122,6 @@ async fn handle_area_ocr_shortcut(app_handle: AppHandle) {
 }
 
 async fn handle_slide_translation_shortcut(app_handle: AppHandle) {
-    // Copy the selected text before focusing our window so we don't lose the original selection.
     let selected_text = capture_selected_text();
     show_main_window(&app_handle);
 
@@ -126,27 +131,233 @@ async fn handle_slide_translation_shortcut(app_handle: AppHandle) {
     }
 }
 
+fn truncate_for_display(s: &str, max_chars: usize) -> String {
+    let char_count = s.chars().count();
+    if char_count <= max_chars {
+        s.to_string()
+    } else {
+        let truncated: String = s.chars().take(max_chars).collect();
+        format!("{}... ({} chars)", truncated, char_count)
+    }
+}
+
 fn capture_selected_text() -> Option<String> {
-    capture_selected_text_without_clipboard().or_else(capture_selected_text_via_clipboard)
+    eprintln!("📝 [Capture] Starting text capture...");
+
+    #[cfg(target_os = "macos")]
+    {
+        match capture_via_macos_accessibility() {
+            Some(text) if !text.trim().is_empty() => {
+                eprintln!(
+                    "✅ [Capture] Success via accessibility: {}",
+                    truncate_for_display(&text, 50)
+                );
+                return Some(text);
+            }
+            Some(_) => {
+                eprintln!("❌ [Capture] Accessibility returned empty text, continuing...");
+            }
+            None => {
+                eprintln!("⚠️  [Capture] Accessibility API capture failed, trying clipboard...");
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    let mut should_try_direct_clipboard = false;
+
+    if let Some(text) = capture_via_primary_selection() {
+        if !looks_like_file_path(&text) {
+            eprintln!("✅ [Capture] Success: {}", truncate_for_display(&text, 50));
+            return Some(text);
+        } else {
+            eprintln!(
+                "⚠️  [Capture] Got file path from primary selection: {:?}",
+                text
+            );
+            #[cfg(target_os = "linux")]
+            {
+                should_try_direct_clipboard = true;
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                eprintln!(
+                    "❌ [Capture] Skipping clipboard fallback on this platform (file path detected)"
+                );
+                return None;
+            }
+        }
+    } else {
+        #[cfg(target_os = "linux")]
+        {
+            should_try_direct_clipboard = true;
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            eprintln!(
+                "❌ [Capture] Primary selection capture failed and clipboard fallback is disabled"
+            );
+            return None;
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if should_try_direct_clipboard {
+            eprintln!("⏭️  [Capture] Primary selection unavailable, trying direct clipboard...");
+
+            if let Some(text) = read_clipboard_directly() {
+                eprintln!(
+                    "✅ [Capture] Success via direct clipboard: {}",
+                    truncate_for_display(&text, 50)
+                );
+                return Some(text);
+            }
+        }
+    }
 }
 
-#[cfg(target_os = "macos")]
-fn capture_selected_text_without_clipboard() -> Option<String> {
-    capture_selected_text_macos()
+fn looks_like_file_path(text: &str) -> bool {
+    let trimmed = text.trim();
+
+    let is_path = trimmed.starts_with('/')
+        || trimmed.starts_with("C:\\")
+        || trimmed.starts_with("file://")
+        || trimmed.ends_with(".resolved")
+        || trimmed.ends_with(".md")
+        || trimmed.ends_with(".rs")
+        || trimmed.ends_with(".js")
+        || trimmed.ends_with(".ts")
+        || trimmed.ends_with(".json")
+        || trimmed.ends_with(".txt");
+
+    let has_path_structure =
+        (trimmed.contains('/') || trimmed.contains('\\')) && (trimmed.len() > 20);
+
+    is_path || has_path_structure
 }
 
-#[cfg(target_os = "windows")]
-fn capture_selected_text_without_clipboard() -> Option<String> {
-    capture_selected_text_windows()
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn capture_via_primary_selection() -> Option<String> {
+    use arboard::Clipboard;
+
+    eprintln!("🔍 [Primary Selection] Starting capture...");
+
+    let mut clipboard = Clipboard::new().ok()?;
+    let original_clipboard = clipboard.get_text().ok();
+
+    eprintln!(
+        "📋 [Primary Selection] Original clipboard: {:?}",
+        original_clipboard
+            .as_ref()
+            .map(|s| truncate_for_display(s, 50))
+    );
+
+    let mut captured_text = None;
+
+    for attempt in 1..=COPY_SHORTCUT_ATTEMPTS {
+        eprintln!(
+            "⌨️  [Primary Selection] Triggering copy shortcut (attempt {}/{})...",
+            attempt, COPY_SHORTCUT_ATTEMPTS
+        );
+        trigger_copy_shortcut();
+        let delay = COPY_RETRY_BASE_DELAY_MS
+            + COPY_RETRY_DELAY_STEP_MS.saturating_mul((attempt - 1) as u64);
+        std::thread::sleep(std::time::Duration::from_millis(delay));
+
+        let new_clipboard = clipboard.get_text().ok();
+
+        eprintln!(
+            "📋 [Primary Selection] New clipboard (attempt {}/{}) : {:?}",
+            attempt,
+            COPY_SHORTCUT_ATTEMPTS,
+            new_clipboard.as_ref().map(|s| truncate_for_display(s, 50))
+        );
+
+        match (&original_clipboard, &new_clipboard) {
+            (Some(orig), Some(new)) if orig != new => {
+                eprintln!(
+                    "✅ [Primary Selection] Captured new text on attempt {}",
+                    attempt
+                );
+                captured_text = Some(new.clone());
+                break;
+            }
+            (None, Some(new)) if !new.trim().is_empty() => {
+                eprintln!(
+                    "✅ [Primary Selection] Captured new text on attempt {} (clipboard was empty)",
+                    attempt
+                );
+                captured_text = Some(new.clone());
+                break;
+            }
+            _ => {
+                if attempt == COPY_SHORTCUT_ATTEMPTS {
+                    eprintln!(
+                        "❌ [Primary Selection] No new text after {} attempts (clipboard unchanged)",
+                        COPY_SHORTCUT_ATTEMPTS
+                    );
+                }
+            }
+        }
+    }
+
+    if let Some(original) = original_clipboard {
+        let _ = clipboard.set_text(original);
+        eprintln!("🔄 [Primary Selection] Restored original clipboard");
+    } else {
+        let _ = clipboard.clear();
+        eprintln!("🔄 [Primary Selection] Cleared clipboard (was empty)");
+    }
+
+    captured_text.filter(|text| !text.trim().is_empty())
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
-fn capture_selected_text_without_clipboard() -> Option<String> {
+#[cfg(target_os = "linux")]
+fn capture_via_primary_selection() -> Option<String> {
+    use arboard::{Clipboard, GetExtLinux, LinuxClipboardKind};
+
+    eprintln!("🔍 [Primary Selection] Reading from Linux primary selection...");
+    let mut clipboard = Clipboard::new().ok()?;
+
+    match clipboard
+        .get()
+        .clipboard(LinuxClipboardKind::Primary)
+        .text()
+    {
+        Ok(text) => {
+            if text.trim().is_empty() {
+                eprintln!("❌ [Primary Selection] Primary selection was empty");
+                None
+            } else {
+                eprintln!(
+                    "✅ [Primary Selection] Captured text from primary selection: {}",
+                    truncate_for_display(&text, 50)
+                );
+                Some(text)
+            }
+        }
+        Err(err) => {
+            eprintln!(
+                "❌ [Primary Selection] Failed to read primary selection via arboard: {}",
+                err
+            );
+            None
+        }
+    }
+}
+
+#[cfg(all(
+    not(target_os = "macos"),
+    not(target_os = "windows"),
+    not(target_os = "linux")
+))]
+fn capture_via_primary_selection() -> Option<String> {
     None
 }
 
 #[cfg(target_os = "macos")]
-fn capture_selected_text_macos() -> Option<String> {
+fn capture_via_macos_accessibility() -> Option<String> {
     use std::process::Command;
 
     let script = r#"
@@ -176,13 +387,18 @@ fn capture_selected_text_macos() -> Option<String> {
         .ok()?;
 
     if !output.status.success() {
+        eprintln!(
+            "❌ [Capture] Accessibility script failed with status: {}",
+            output.status
+        );
         return None;
     }
 
     let text = String::from_utf8_lossy(&output.stdout)
-        .trim()
         .trim_matches('\u{0}')
+        .trim()
         .to_string();
+
     if text.is_empty() || text == "missing value" {
         None
     } else {
@@ -190,60 +406,9 @@ fn capture_selected_text_macos() -> Option<String> {
     }
 }
 
-#[cfg(target_os = "windows")]
-fn capture_selected_text_windows() -> Option<String> {
-    use std::process::Command;
-
-    let script = r#"
-        Add-Type -AssemblyName UIAutomationClient | Out-Null
-        $focused = [System.Windows.Automation.AutomationElement]::FocusedElement
-        if ($null -ne $focused) {
-            $textPattern = $null
-            try {
-                $textPattern = $focused.GetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern)
-            } catch {}
-            if ($null -ne $textPattern) {
-                $ranges = $textPattern.GetSelection()
-                if ($ranges.Length -gt 0) {
-                    $txt = $ranges[0].GetText(-1)
-                    if ($txt) { $txt }
-                }
-            } else {
-                $valuePattern = $null
-                try {
-                    $valuePattern = $focused.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
-                } catch {}
-                if ($null -ne $valuePattern) {
-                    $txt = $valuePattern.Current.Value
-                    if ($txt) { $txt }
-                }
-            }
-        }
-    "#;
-
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
-        .output()
-        .ok()?;
-
-    if !output.status.success() {
-        return None;
-    }
-
-    let text = String::from_utf8_lossy(&output.stdout)
-        .trim()
-        .trim_matches('\u{0}')
-        .to_string();
-    if text.is_empty() {
-        None
-    } else {
-        Some(text)
-    }
-}
-
-fn capture_selected_text_via_clipboard() -> Option<String> {
-    trigger_copy_shortcut();
-    std::thread::sleep(std::time::Duration::from_millis(120));
+#[cfg(target_os = "linux")]
+fn read_clipboard_directly() -> Option<String> {
+    use arboard::Clipboard;
 
     let mut clipboard = Clipboard::new().ok()?;
     let text = clipboard.get_text().ok()?;

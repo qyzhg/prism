@@ -1,3 +1,5 @@
+#[cfg(not(target_os = "macos"))]
+use crate::system_tray::show_main_window;
 use crate::{
     app_state::AppState,
     database::{AppConfig, TranslationRecord},
@@ -6,8 +8,6 @@ use crate::{
     shortcuts::register_shortcuts,
     translation::{TranslationRequest, TranslationResult},
 };
-#[cfg(not(target_os = "macos"))]
-use crate::system_tray::show_main_window;
 use reqwest::Client;
 use serde::Serialize;
 use serde_json::Value;
@@ -302,10 +302,7 @@ fn extract_model_list(payload: &Value) -> Vec<ModelInfo> {
         }
 
         if let Some(nested_obj) = obj.get("data").and_then(|v| v.as_object()) {
-            return nested_obj
-                .values()
-                .filter_map(parse_model_value)
-                .collect();
+            return nested_obj.values().filter_map(parse_model_value).collect();
         }
 
         let mut collected = Vec::new();
