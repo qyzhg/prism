@@ -6,6 +6,8 @@ use crate::{
     shortcuts::register_shortcuts,
     translation::{TranslationRequest, TranslationResult},
 };
+#[cfg(not(target_os = "macos"))]
+use crate::system_tray::show_main_window;
 use tauri::Emitter;
 use tauri::{AppHandle, Manager, State};
 
@@ -329,9 +331,8 @@ pub async fn submit_area_for_ocr(
         main_window
             .emit("ocr-pending", true)
             .map_err(|e| e.to_string())?;
-        // Show main window immediately after screenshot is taken
-        let _ = main_window.show();
     }
+    show_main_window(&app_handle);
 
     let app_handle_clone = app_handle.clone();
     state.inner();

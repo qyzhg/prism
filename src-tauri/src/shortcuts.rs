@@ -1,7 +1,9 @@
-use crate::{app_state::AppState, commands::start_area_selection, database};
+use crate::{
+    app_state::AppState, commands::start_area_selection, database, system_tray::show_main_window,
+};
 use arboard::Clipboard;
 use std::str::FromStr;
-use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 const PREFILL_EVENT: &str = "prefill-text";
@@ -29,10 +31,9 @@ pub fn register_shortcuts(app: &AppHandle) {
                         eprintln!("🎯 SHORTCUT TRIGGERED: {:?}", shortcut);
                         eprintln!("Event state: {:?}", event.state);
                         if event.state == ShortcutState::Pressed {
-                            if let Some(window) = app_handle.get_webview_window("main") {
-                                eprintln!("✓ Window found, showing...");
-                                let _ = window.show();
-                                let _ = window.set_focus();
+                            if app_handle.get_webview_window("main").is_some() {
+                                eprintln!("✓ Window found, forcing focus...");
+                                show_main_window(&app_handle);
                             } else {
                                 eprintln!("✗ Window 'main' NOT FOUND!");
                             }
@@ -107,25 +108,22 @@ pub fn register_shortcuts(app: &AppHandle) {
     }
 }
 async fn handle_area_ocr_shortcut(app_handle: AppHandle) {
-    let _ = start_area_selection(app_handle).await;
+    let handle_for_recovery = app_handle.clone();
+    if let Err(err) = start_area_selection(app_handle).await {
+        eprintln!("启动区域截图失败: {}", err);
+        show_main_window(&handle_for_recovery);
+    }
 }
 
 async fn handle_slide_translation_shortcut(app_handle: AppHandle) {
     // Copy the selected text before focusing our window so we don't lose the original selection.
     let selected_text = capture_selected_text();
-    let _ = show_main_window(&app_handle);
+    show_main_window(&app_handle);
 
     if let Some(window) = app_handle.get_webview_window("main") {
         let payload = selected_text.unwrap_or_default();
         let _ = window.emit(PREFILL_EVENT, payload);
     }
-}
-
-fn show_main_window(app_handle: &AppHandle) -> Option<WebviewWindow> {
-    app_handle.get_webview_window("main").inspect(|window| {
-        let _ = window.show();
-        let _ = window.set_focus();
-    })
 }
 
 fn capture_selected_text() -> Option<String> {

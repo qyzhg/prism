@@ -1,4 +1,4 @@
-use crate::{app_state::AppState, ocr_tasks::run_ocr_on_image_data};
+use crate::{app_state::AppState, ocr_tasks::run_ocr_on_image_data, system_tray::show_main_window};
 use tauri::Emitter;
 use tauri::{AppHandle, Manager, State};
 use tokio::{fs, process::Command};
@@ -82,15 +82,14 @@ pub async fn start_area_selection(app_handle: AppHandle) -> Result<(), String> {
 
         let ocr_result = match capture_result {
             Ok(image_data) => {
-                if let Some(main_window) = app_handle.get_webview_window("main") {
-                    if let Err(e) = main_window.show() {
-                        eprintln!("显示主窗口失败: {}", e);
-                    }
-                }
+                show_main_window(&app_handle);
                 let state = app_handle.state::<AppState>();
                 run_ocr_on_image_data(image_data, state).await
             }
-            Err(err) => Err(err),
+            Err(err) => {
+                show_main_window(&app_handle);
+                Err(err)
+            }
         };
 
         if let Some(main_window) = app_handle.get_webview_window("main") {

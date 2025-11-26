@@ -219,7 +219,7 @@ impl Translator {
         let mut prev_is_lower = false;
 
         for ch in text.chars() {
-            if ch == '_' || ch == '-'{
+            if ch == '_' || ch == '-' {
                 result.push(' ');
                 prev_is_lower = false;
             } else if ch.is_uppercase() && prev_is_lower {

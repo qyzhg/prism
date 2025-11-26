@@ -85,12 +85,19 @@ const endSelection = async () => {
 };
 
 const cancelSelection = async () => {
-  // Show main window before closing selector
+  // Show and focus main window before closing selector
   try {
-    const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-    const mainWindow = WebviewWindow.getByLabel('main');
+    const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+    const mainWindow = WebviewWindow.getByLabel("main");
     if (mainWindow) {
+      await mainWindow.unminimize();
       await mainWindow.show();
+      await mainWindow.setFocus();
+      try {
+        await mainWindow.requestUserAttention("informational");
+      } catch (attentionError) {
+        console.debug("requestUserAttention failed:", attentionError);
+      }
     }
   } catch (error) {
     console.error("Failed to show main window:", error);
