@@ -1,39 +1,52 @@
 <template>
   <div class="language-selector">
     <div class="lang-group">
-      <select v-model="sourceLang" @change="$emit('source-change', sourceLang)" class="lang-select">
-        <option v-for="lang in languages" :key="lang.code" :value="lang.code">
-          {{ lang.name }}
-        </option>
-      </select>
-      <button @click="$emit('swap')" class="swap-btn" title="交换语言">
+      <CustomSelect
+        v-model="sourceLang"
+        :options="languageOptions"
+        placeholder="选择源语言"
+      />
+    </div>
+    <button @click="handleSwap" class="swap-btn" title="交换语言">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
         </svg>
       </button>
-    </div>
     <div class="lang-group">
-      <select v-model="targetLang" @change="$emit('target-change', targetLang)" class="lang-select">
-        <option v-for="lang in languages" :key="lang.code" :value="lang.code">
-          {{ lang.name }}
-        </option>
-      </select>
+      <CustomSelect
+        v-model="targetLang"
+        :options="languageOptions"
+        placeholder="选择目标语言"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
+import CustomSelect from './CustomSelect.vue'
 
 const props = defineProps({
   sourceLanguage: String,
   targetLanguage: String
 })
 
-const emit = defineEmits(['source-change', 'target-change', 'swap'])
+const emit = defineEmits(['update:source-language', 'update:target-language', 'swap-languages'])
 
 const sourceLang = ref(props.sourceLanguage)
 const targetLang = ref(props.targetLanguage)
+
+const handleSwap = () => {
+  if (sourceLang.value === "auto") return;
+  
+  const temp = sourceLang.value;
+  sourceLang.value = targetLang.value;
+  targetLang.value = temp;
+  
+  emit('update:source-language', sourceLang.value);
+  emit('update:target-language', targetLang.value);
+  emit('swap-languages');
+}
 
 const languages = [
   { code: 'auto', name: '自动检测' },
@@ -53,32 +66,59 @@ const languages = [
   { code: 'vi', name: '越南语' }
 ]
 
-// 监听props变化
-watch(() => props.sourceLanguage, (newVal) => {
-  sourceLang.value = newVal
-})
+const languageOptions = languages.map((lang) => ({
+  value: lang.code,
+  label: lang.name
+}))
 
-watch(() => props.targetLanguage, (newVal) => {
+watch(
+  () => props.sourceLanguage,
+  (newVal) => {
+  sourceLang.value = newVal
+  }
+)
+
+watch(
+  () => props.targetLanguage,
+  (newVal) => {
   targetLang.value = newVal
-})
+  }
+)
+
+watch(
+  sourceLang,
+  (newVal) => {
+    if (newVal !== props.sourceLanguage) {
+      emit('update:source-language', newVal)
+    }
+  }
+)
+
+watch(
+  targetLang,
+  (newVal) => {
+    if (newVal !== props.targetLanguage) {
+      emit('update:target-language', newVal)
+    }
+  }
+)
 </script>
 
 <style scoped>
 .language-selector {
   display: flex;
+  align-items: center;
   gap: 10px;
   margin-bottom: 15px;
 }
 
 .lang-group {
-  display: flex;
-  align-items: center;
-  gap: 5px;
   flex: 1;
+  min-width: 0;
 }
 
 .lang-select {
-  flex: 1;
+  width: 100%;
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
@@ -107,6 +147,9 @@ watch(() => props.targetLanguage, (newVal) => {
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
 }
 
 .swap-btn:hover {
@@ -117,4 +160,5 @@ watch(() => props.targetLanguage, (newVal) => {
 .swap-btn:active {
   transform: scale(0.95);
 }
+
 </style>

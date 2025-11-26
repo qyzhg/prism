@@ -92,8 +92,9 @@ defineEmits(['copy'])
 }
 
 .result-content {
-  min-height: 120px;
+  height: 180px;
   position: relative;
+  overflow: hidden;
 }
 
 .loading {
@@ -124,6 +125,9 @@ defineEmits(['copy'])
   line-height: 1.6;
   white-space: pre-wrap;
   word-wrap: break-word;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .placeholder {

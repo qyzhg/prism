@@ -135,6 +135,14 @@ defineEmits(['togglePin', 'showHistory', 'showSettings', 'start-ocr'])
     min-width: 0;
   }
   
+  .toolbar-left {
+    justify-content: flex-start;
+  }
+  
+  .toolbar-right {
+    justify-content: flex-end;
+  }
+  
   .toolbar-btn span {
     display: none;
   }

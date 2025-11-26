@@ -2,11 +2,6 @@
   <div class="title-bar" data-tauri-drag-region>
     <div class="title">Prism</div>
     <div class="window-controls" data-tauri-drag-region="false">
-      <button class="control-btn minimize" data-tauri-drag-region="false" @click="$emit('minimize')">
-        <svg width="12" height="12" viewBox="0 0 12 12">
-          <line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" stroke-width="1.5"/>
-        </svg>
-      </button>
       <button class="control-btn close" data-tauri-drag-region="false" @click="$emit('close')">
         <svg width="12" height="12" viewBox="0 0 12 12">
           <line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" stroke-width="1.5"/>
@@ -18,7 +13,7 @@
 </template>
 
 <script setup>
-defineEmits(['minimize', 'close'])
+defineEmits(['close'])
 </script>
 
 <style scoped>
@@ -27,8 +22,8 @@ defineEmits(['minimize', 'close'])
   justify-content: space-between;
   align-items: center;
   padding: 8px 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: white;
+  color: #1f2937;
   font-weight: 500;
   user-select: none;
   -webkit-app-region: drag;
@@ -45,8 +40,8 @@ defineEmits(['minimize', 'close'])
   height: 24px;
   border: none;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
+  background: #f3f4f6;
+  color: #6b7280;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -55,11 +50,11 @@ defineEmits(['minimize', 'close'])
 }
 
 .control-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.1);
+  background: #e5e7eb;
 }
 
 .control-btn.close:hover {
   background: #ff5f56;
+  color: white;
 }
 </style>

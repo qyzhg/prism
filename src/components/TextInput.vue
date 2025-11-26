@@ -15,15 +15,24 @@
         </button>
       </div>
     </div>
-    <div class="textarea-container">
-      <textarea
-        v-model="inputText"
-        @input="handleInput"
-        @keydown="handleKeydown"
-        placeholder="请输入要翻译的文本..."
-        class="input-textarea"
-        :disabled="isOcrProcessing"
-      ></textarea>
+    <div class="input-body">
+      <div class="textarea-scroll">
+        <div class="textarea-container">
+          <textarea
+            v-model="inputText"
+            @input="handleInput"
+            @keydown="handleKeydown"
+            placeholder="请输入要翻译的文本..."
+            class="input-textarea"
+            :disabled="isOcrProcessing"
+          ></textarea>
+          <!-- OCR Loading Indicator -->
+          <div v-if="isOcrProcessing" class="ocr-loading">
+            <div class="ocr-loading-spinner"></div>
+            <span>正在识别文字...</span>
+          </div>
+        </div>
+      </div>
       <button @click="$emit('translate')" class="translate-button" title="翻译">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M5 8l6 6m0 0l6-6m-6 6V3"/>
@@ -31,11 +40,6 @@
         </svg>
         <span>翻译</span>
       </button>
-      <!-- OCR Loading Indicator -->
-      <div v-if="isOcrProcessing" class="ocr-loading">
-        <div class="ocr-loading-spinner"></div>
-        <span>正在识别文字...</span>
-      </div>
     </div>
   </div>
 </template>
@@ -81,6 +85,8 @@ watch(() => props.modelValue, (newVal) => {
   border-radius: 8px;
   border: 1px solid #ddd;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .input-header {
@@ -118,20 +124,35 @@ watch(() => props.modelValue, (newVal) => {
   background: #e9ecef;
 }
 
+.input-body {
+  position: relative;
+  padding: 0 12px 12px;
+  display: flex;
+  flex-direction: column;
+  height: 260px;
+}
+
+.textarea-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
 .textarea-container {
   position: relative;
+  height: 100%;
 }
 
 .input-textarea {
   width: 100%;
-  height: 120px;
+  height: 100%;
   padding: 12px;
-  padding-right: 80px;
   border: none;
   resize: none;
   font-size: 14px;
   line-height: 1.5;
   font-family: inherit;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .input-textarea:focus {
@@ -144,8 +165,8 @@ watch(() => props.modelValue, (newVal) => {
 
 .translate-button {
   position: absolute;
-  bottom: 35px;
-  right: 8px;
+  bottom: 16px;
+  right: 28px;
   display: flex;
   align-items: center;
   gap: 4px;

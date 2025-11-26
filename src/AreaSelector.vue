@@ -85,17 +85,6 @@ const endSelection = async () => {
 };
 
 const cancelSelection = async () => {
-  // Show main window before closing selector
-  try {
-    const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-    const mainWindow = WebviewWindow.getByLabel('main');
-    if (mainWindow) {
-      await mainWindow.show();
-    }
-  } catch (error) {
-    console.error("Failed to show main window:", error);
-  }
-  
   await getCurrentWindow().close();
 };
 
