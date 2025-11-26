@@ -95,7 +95,7 @@ const cancelSelection = async () => {
   } catch (error) {
     console.error("Failed to show main window:", error);
   }
-  
+
   await getCurrentWindow().close();
 };
 

@@ -284,17 +284,12 @@ const onInput = () => {
 const swapLanguages = () => {
   if (selectedFromLang.value === "auto") return;
   
-  const temp = selectedFromLang.value;
-  selectedFromLang.value = selectedToLang.value;
-  selectedToLang.value = temp;
-  
   // 如果有翻译结果，交换原文和译文
-  if (inputText.value && translatedText.value) {
-    const tempText = inputText.value;
-    inputText.value = translatedText.value;
-    translatedText.value = tempText;
-    autoResize();
-  }
+  const currentInput = inputText.value;
+  const currentResult = translatedText.value;
+  inputText.value = currentResult || "";
+  translatedText.value = currentInput || "";
+  autoResize();
 };
 
 // 粘贴功能
@@ -552,7 +547,6 @@ onUnmounted(() => {
   <div class="app-container">
     <!-- 顶部标题栏 -->
     <TitleBar 
-      @minimize="() => getCurrentWindow().minimize()"
       @close="hideToTray"
     />
 
@@ -649,6 +643,8 @@ html, body {
   height: 100vh;
   background: #f5f5f5;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 /* 主内容区 */
