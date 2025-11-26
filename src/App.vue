@@ -12,6 +12,42 @@ import BottomToolbar from './components/BottomToolbar.vue'
 import HistoryModal from './components/HistoryModal.vue'
 import SettingsModal from './components/SettingsModal.vue'
 
+// 平台相关默认快捷键
+const isMacPlatform =
+  typeof navigator !== "undefined" &&
+  /mac/i.test((navigator.userAgent || navigator.platform || "").toLowerCase());
+
+const getDefaultHotkeys = () => {
+  if (isMacPlatform) {
+    return {
+      popup_window: "Option+A",
+      slide_translation: "Option+D",
+      screenshot_translation: "Option+S"
+    };
+  }
+
+  return {
+    popup_window: "Alt+A",
+    slide_translation: "Alt+D",
+    screenshot_translation: "Alt+S"
+  };
+};
+
+const createDefaultConfig = () => ({
+  translation: {
+    service: "openai",
+    base_url: "https://api.openai.com/v1",
+    api_key: "",
+    model_id: "gpt-5-nano"
+  },
+  ocr: {
+    base_url: "https://api.openai.com/v1",
+    api_key: "",
+    model_id: "gpt-4-vision-preview"
+  },
+  hotkeys: getDefaultHotkeys()
+});
+
 // 响应式数据
 const inputText = ref("");
 const translatedText = ref("");
@@ -27,43 +63,9 @@ const selectedToLang = ref("auto");
 const selectedService = ref("openai");
 
 // 设置相关数据
-const appConfig = ref({
-  translation: {
-    service: "openai",
-    base_url: "https://api.openai.com/v1",
-    api_key: "",
-    model_id: "gpt-5-nano"
-  },
-  ocr: {
-    base_url: "https://api.openai.com/v1",
-    api_key: "",
-    model_id: "gpt-4-vision-preview"
-  },
-  hotkeys: {
-    popup_window: "Ctrl+Shift+T",
-    slide_translation: "Ctrl+Shift+S",
-    screenshot_translation: "Ctrl+Shift+A"
-  }
-});
+const appConfig = ref(createDefaultConfig());
 
-const tempConfig = ref({
-  translation: {
-    service: "openai",
-    base_url: "https://api.openai.com/v1",
-    api_key: "",
-    model_id: "gpt-5-nano"
-  },
-  ocr: {
-    base_url: "https://api.openai.com/v1",
-    api_key: "",
-    model_id: "gpt-4-vision-preview"
-  },
-  hotkeys: {
-    popup_window: "Ctrl+Shift+T",
-    slide_translation: "Ctrl+Shift+S",
-    screenshot_translation: "Ctrl+Shift+A"
-  }
-});
+const tempConfig = ref(createDefaultConfig());
 const hasChanges = ref(false);
 const isSaving = ref(false);
 const saveMessage = ref("");

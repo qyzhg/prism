@@ -124,7 +124,7 @@
               <span>弹出窗口</span>
               <HotkeyRecorder
                 v-model="localConfig.hotkeys.popup_window"
-                placeholder="Ctrl+Shift+T"
+                :placeholder="platformHotkeys.popup_window"
               />
             </label>
             <p class="setting-hint">按下快捷键弹出翻译窗口</p>
@@ -135,7 +135,7 @@
               <span>选词翻译</span>
               <HotkeyRecorder
                 v-model="localConfig.hotkeys.slide_translation"
-                placeholder="Ctrl+Shift+S"
+                :placeholder="platformHotkeys.slide_translation"
               />
             </label>
             <p class="setting-hint">按下快捷键启动选词翻译</p>
@@ -146,7 +146,7 @@
               <span>截图翻译</span>
               <HotkeyRecorder
                 v-model="localConfig.hotkeys.screenshot_translation"
-                placeholder="Ctrl+Shift+A"
+                :placeholder="platformHotkeys.screenshot_translation"
               />
             </label>
             <p class="setting-hint">按下快捷键启动截图翻译</p>
@@ -208,6 +208,26 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'save'])
 
+const isMacPlatform =
+  typeof navigator !== 'undefined' &&
+  /mac/i.test((navigator.userAgent || navigator.platform || '').toLowerCase())
+
+const getDefaultHotkeys = () => {
+  if (isMacPlatform) {
+    return {
+      popup_window: "Option+A",
+      slide_translation: "Option+D",
+      screenshot_translation: "Option+S"
+    }
+  }
+
+  return {
+    popup_window: "Alt+A",
+    slide_translation: "Alt+D",
+    screenshot_translation: "Alt+S"
+  }
+}
+
 // 默认配置 - 与App.vue中的appConfig结构匹配
 const defaultConfig = {
   translation: {
@@ -222,12 +242,10 @@ const defaultConfig = {
     model_id: "gpt-4-vision-preview",
     reuse_translation: false
   },
-  hotkeys: {
-    popup_window: "Ctrl+Shift+T",
-    slide_translation: "Ctrl+Shift+S",
-    screenshot_translation: "Ctrl+Shift+A"
-  }
+  hotkeys: getDefaultHotkeys()
 }
+
+const platformHotkeys = defaultConfig.hotkeys
 
 const localConfig = ref(JSON.parse(JSON.stringify(defaultConfig)))
 const validationError = ref('')

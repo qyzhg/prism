@@ -1,4 +1,4 @@
-use crate::{app_state::AppState, commands::capture_and_ocr, database};
+use crate::{app_state::AppState, commands::start_area_selection, database};
 use arboard::Clipboard;
 use std::str::FromStr;
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
@@ -7,6 +7,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 const PREFILL_EVENT: &str = "prefill-text";
 
 pub fn register_shortcuts(app: &AppHandle) {
+    eprintln!("register_shortcuts()");
     let state = app.state::<AppState>();
     let db = state.db.lock().unwrap();
 
@@ -15,31 +16,31 @@ pub fn register_shortcuts(app: &AppHandle) {
     let hotkeys = if let Ok(Some(config)) = db.get_app_config() {
         config.hotkeys
     } else {
-        database::HotkeyConfig {
-            popup_window: "Ctrl+Shift+T".to_string(),
-            slide_translation: "Ctrl+Shift+S".to_string(),
-            screenshot_translation: "Ctrl+Shift+A".to_string(),
-        }
+        database::HotkeyConfig::platform_default()
     };
 
     if !hotkeys.popup_window.is_empty() {
         if let Ok(shortcut) = Shortcut::from_str(&hotkeys.popup_window) {
             let app_handle = app.clone();
-            match app.global_shortcut().register(shortcut) {
-                Ok(_) => {
-                    let _ = app.global_shortcut().on_shortcut(
-                        shortcut,
-                        move |_app, _shortcut, event| {
-                            if event.state == ShortcutState::Pressed {
-                                if let Some(window) = app_handle.get_webview_window("main") {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                }
-                            }
-                        },
-                    );
-                    println!("Registered popup window shortcut: {}", hotkeys.popup_window);
-                }
+            // 直接使用 on_shortcut，不需要先 register
+            let result = app.global_shortcut().on_shortcut(
+                shortcut,
+                move |_app, _shortcut, event| {
+                    eprintln!("🎯 SHORTCUT TRIGGERED: {:?}", shortcut);
+                    eprintln!("Event state: {:?}", event.state);
+                    if event.state == ShortcutState::Pressed {
+                        if let Some(window) = app_handle.get_webview_window("main") {
+                            eprintln!("✓ Window found, showing...");
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        } else {
+                            eprintln!("✗ Window 'main' NOT FOUND!");
+                        }
+                    }
+                },
+            );
+            match result {
+                Ok(_) => println!("Registered popup window shortcut: {}", hotkeys.popup_window),
                 Err(e) => {
                     eprintln!(
                         "Failed to register popup window shortcut '{}': {}",
@@ -53,24 +54,22 @@ pub fn register_shortcuts(app: &AppHandle) {
     if !hotkeys.screenshot_translation.is_empty() {
         if let Ok(shortcut) = Shortcut::from_str(&hotkeys.screenshot_translation) {
             let app_handle = app.clone();
-            match app.global_shortcut().register(shortcut) {
-                Ok(_) => {
-                    let _ = app.global_shortcut().on_shortcut(
-                        shortcut,
-                        move |_app, _shortcut, event| {
-                            if event.state == ShortcutState::Pressed {
-                                let handle = app_handle.clone();
-                                tauri::async_runtime::spawn(async move {
-                                    handle_fullscreen_ocr_shortcut(handle).await;
-                                });
-                            }
-                        },
-                    );
-                    println!(
-                        "Registered screenshot translation shortcut: {}",
-                        hotkeys.screenshot_translation
-                    );
-                }
+            let result = app.global_shortcut().on_shortcut(
+                shortcut,
+                move |_app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        let handle = app_handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            handle_area_ocr_shortcut(handle).await;
+                        });
+                    }
+                },
+            );
+            match result {
+                Ok(_) => println!(
+                    "Registered screenshot translation shortcut: {}",
+                    hotkeys.screenshot_translation
+                ),
                 Err(e) => {
                     eprintln!(
                         "Failed to register screenshot translation shortcut '{}': {}",
@@ -84,24 +83,22 @@ pub fn register_shortcuts(app: &AppHandle) {
     if !hotkeys.slide_translation.is_empty() {
         if let Ok(shortcut) = Shortcut::from_str(&hotkeys.slide_translation) {
             let app_handle = app.clone();
-            match app.global_shortcut().register(shortcut) {
-                Ok(_) => {
-                    let _ = app.global_shortcut().on_shortcut(
-                        shortcut,
-                        move |_app, _shortcut, event| {
-                            if event.state == ShortcutState::Pressed {
-                                let handle = app_handle.clone();
-                                tauri::async_runtime::spawn(async move {
-                                    handle_slide_translation_shortcut(handle).await;
-                                });
-                            }
-                        },
-                    );
-                    println!(
-                        "Registered slide translation shortcut: {}",
-                        hotkeys.slide_translation
-                    );
-                }
+            let result = app.global_shortcut().on_shortcut(
+                shortcut,
+                move |_app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        let handle = app_handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            handle_slide_translation_shortcut(handle).await;
+                        });
+                    }
+                },
+            );
+            match result {
+                Ok(_) => println!(
+                    "Registered slide translation shortcut: {}",
+                    hotkeys.slide_translation
+                ),
                 Err(e) => {
                     eprintln!(
                         "Failed to register slide translation shortcut '{}': {}",
@@ -112,29 +109,8 @@ pub fn register_shortcuts(app: &AppHandle) {
         }
     }
 }
-
-async fn handle_fullscreen_ocr_shortcut(app_handle: AppHandle) {
-    let _ = show_main_window(&app_handle);
-
-    if let Some(window) = app_handle.get_webview_window("main") {
-        let _ = window.emit("ocr-pending", true);
-    }
-
-    let result = {
-        let state = app_handle.state::<AppState>();
-        capture_and_ocr(state).await
-    };
-
-    if let Some(window) = app_handle.get_webview_window("main") {
-        match result {
-            Ok(text) => {
-                let _ = window.emit("ocr-result", text);
-            }
-            Err(err) => {
-                let _ = window.emit("ocr-result", format!("Error: {}", err));
-            }
-        }
-    }
+async fn handle_area_ocr_shortcut(app_handle: AppHandle) {
+    let _ = start_area_selection(app_handle).await;
 }
 
 async fn handle_slide_translation_shortcut(app_handle: AppHandle) {

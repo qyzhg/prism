@@ -60,6 +60,22 @@ pub struct HotkeyConfig {
     pub screenshot_translation: String,
 }
 
+impl HotkeyConfig {
+    pub fn platform_default() -> Self {
+        let (popup, slide, screenshot) = if cfg!(target_os = "macos") {
+            ("Option+A", "Option+D", "Option+S")
+        } else {
+            ("Alt+A", "Alt+D", "Alt+S")
+        };
+
+        HotkeyConfig {
+            popup_window: popup.to_string(),
+            slide_translation: slide.to_string(),
+            screenshot_translation: screenshot.to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppConfig {
     pub translation: TranslationConfig,
@@ -349,11 +365,7 @@ impl Database {
                 model_id: "gpt-4-vision-preview".to_string(),
                 reuse_translation: true,
             },
-            hotkeys: HotkeyConfig {
-                popup_window: "Ctrl+Shift+T".to_string(),
-                slide_translation: "Ctrl+Shift+S".to_string(),
-                screenshot_translation: "Ctrl+Shift+P".to_string(),
-            },
+            hotkeys: HotkeyConfig::platform_default(),
         })
     }
 }
