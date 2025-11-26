@@ -22,6 +22,9 @@ pub async fn start_area_selection(app_handle: AppHandle) -> Result<(), String> {
         main_window
             .emit("ocr-pending", true)
             .map_err(|e| e.to_string())?;
+        main_window
+            .hide()
+            .map_err(|e| format!("隐藏主窗口失败: {}", e))?;
     }
 
     tauri::async_runtime::spawn(async move {
@@ -79,6 +82,11 @@ pub async fn start_area_selection(app_handle: AppHandle) -> Result<(), String> {
 
         let ocr_result = match capture_result {
             Ok(image_data) => {
+                if let Some(main_window) = app_handle.get_webview_window("main") {
+                    if let Err(e) = main_window.show() {
+                        eprintln!("显示主窗口失败: {}", e);
+                    }
+                }
                 let state = app_handle.state::<AppState>();
                 run_ocr_on_image_data(image_data, state).await
             }

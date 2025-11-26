@@ -204,6 +204,7 @@ const hideToTray = async () => {
 // 区域截图功能
 const areaScreenshot = async () => {
   try {
+    clearInput();
     await invoke("start_area_selection");
   } catch (error) {
     console.error("启动区域选择失败:", error);
@@ -473,6 +474,9 @@ onMounted(async () => {
           // 直接更新inputText的值，TextInput组件会通过watch监听到变化
           inputText.value = trimmedText;
           console.log('inputText.value已更新为:', inputText.value);
+          if (trimmedText.length > 0) {
+            translate();
+          }
         }
       autoResize();
       isOcrProcessing.value = false; // Stop OCR loading
@@ -482,6 +486,7 @@ onMounted(async () => {
   });
 // 监听ocr识别结果
   await getCurrentWindow().listen('ocr-pending', () => {
+    clearInput();
     isOcrProcessing.value = true;
   });
 
