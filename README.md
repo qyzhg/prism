@@ -99,8 +99,8 @@ pnpm tauri build
 
 | Platform | Download Link |
 |----------|---------------|
-| 🪟 Windows | [Latest Release](https://github.com/yourusername/prism/releases) |
-| 🍎 macOS | [Latest Release](https://github.com/yourusername/prism/releases) |
+| 🪟 Windows | [Latest Release](https://github.com/qyzhg/prism/releases) |
+| 🍎 macOS | [Latest Release](https://github.com/qyzhg/prism/releases) |
 | 🐧 Linux | Coming Soon |
 
 ---
