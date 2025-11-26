@@ -491,10 +491,14 @@ onMounted(async () => {
   });
 
   await getCurrentWindow().listen('prefill-text', (event) => {
+    clearInput();
     const incomingText = typeof event.payload === 'string' ? event.payload : '';
+    const hasText = incomingText.trim().length > 0;
     inputText.value = incomingText || '';
-    translatedText.value = '';
     autoResize();
+    if (hasText) {
+      translate();
+    }
   });
 });
 

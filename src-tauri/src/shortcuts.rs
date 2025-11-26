@@ -115,10 +115,9 @@ async fn handle_slide_translation_shortcut(app_handle: AppHandle) {
     let selected_text = capture_selected_text();
     let _ = show_main_window(&app_handle);
 
-    if let Some(text) = selected_text {
-        if let Some(window) = app_handle.get_webview_window("main") {
-            let _ = window.emit(PREFILL_EVENT, text);
-        }
+    if let Some(window) = app_handle.get_webview_window("main") {
+        let payload = selected_text.unwrap_or_default();
+        let _ = window.emit(PREFILL_EVENT, payload);
     }
 }
 
