@@ -15,8 +15,8 @@
        "exceptionDomain": "",
        "frameworks": [],
        "providerShortName": null,
-       "signingIdentity": null,
-       "hardenedRuntime": true,
+       "signingIdentity": "-",
+       "hardenedRuntime": false,
        "minimumSystemVersion": "10.13"
      }
   }

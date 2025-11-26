@@ -104,6 +104,19 @@ pnpm tauri build
 | 🍎 macOS | [Latest Release](https://github.com/qyzhg/prism/releases) |
 | 🐧 Linux | Coming Soon |
 
+### macOS installation notes
+
+Prism is ad-hoc signed (Developer ID certificates cost ~$99/year), so macOS Gatekeeper will still warn the first time you try to run the download.  
+To get past “Prism.app is damaged / can’t be opened” without a paid certificate:
+
+1. Move `Prism.app` into `/Applications`.
+2. Open **Terminal** and run:
+   ```bash
+   xattr -cr /Applications/prism.app
+   sudo spctl --add --label Prism /Applications/prism.app
+   ```
+3. Right-click the app, choose **Open**, and confirm once. Future launches can be done normally.
+
 ---
 
 ## Documentation

@@ -14,6 +14,13 @@
           </svg>
         </button>
       </div>
+      <button @click="$emit('translate')" class="translate-button" title="翻译">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 8l6 6m0 0l6-6m-6 6V3"/>
+          <path d="M5 16l6-6m0 0l6 6m-6-6v9"/>
+        </svg>
+        <span>翻译</span>
+      </button>
     </div>
     <div class="input-body">
       <div class="textarea-scroll">
@@ -33,13 +40,6 @@
           </div>
         </div>
       </div>
-      <button @click="$emit('translate')" class="translate-button" title="翻译">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M5 8l6 6m0 0l6-6m-6 6V3"/>
-          <path d="M5 16l6-6m0 0l6 6m-6-6v9"/>
-        </svg>
-        <span>翻译</span>
-      </button>
     </div>
   </div>
 </template>
@@ -164,9 +164,6 @@ watch(() => props.modelValue, (newVal) => {
 }
 
 .translate-button {
-  position: absolute;
-  bottom: 16px;
-  right: 28px;
   display: flex;
   align-items: center;
   gap: 4px;
