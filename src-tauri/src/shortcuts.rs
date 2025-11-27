@@ -166,7 +166,9 @@ fn capture_selected_text() -> Option<String> {
                 eprintln!("Ã¢ÂÅ’ [Capture] Accessibility returned empty text, continuing...");
             }
             None => {
-                eprintln!("Ã¢Å¡ Ã¯Â¸Â  [Capture] Accessibility API capture failed, trying clipboard...");
+                eprintln!(
+                    "Ã¢Å¡ Ã¯Â¸Â  [Capture] Accessibility API capture failed, trying clipboard..."
+                );
             }
         }
     }
@@ -176,7 +178,10 @@ fn capture_selected_text() -> Option<String> {
 
     if let Some(text) = capture_via_primary_selection() {
         if !looks_like_file_path(&text) {
-            eprintln!("Ã¢Å“â€¦ [Capture] Success: {}", truncate_for_display(&text, 50));
+            eprintln!(
+                "Ã¢Å“â€¦ [Capture] Success: {}",
+                truncate_for_display(&text, 50)
+            );
             return Some(text);
         } else {
             eprintln!(
@@ -212,7 +217,9 @@ fn capture_selected_text() -> Option<String> {
     #[cfg(target_os = "linux")]
     {
         if should_try_direct_clipboard {
-            eprintln!("Ã¢ÂÂ­Ã¯Â¸Â  [Capture] Primary selection unavailable, trying direct clipboard...");
+            eprintln!(
+                "Ã¢ÂÂ­Ã¯Â¸Â  [Capture] Primary selection unavailable, trying direct clipboard..."
+            );
 
             if let Some(text) = read_clipboard_directly() {
                 eprintln!(
@@ -250,15 +257,14 @@ fn capture_via_windows_ui_automation() -> Option<String> {
     use windows::{
         core::{Interface, BSTR},
         Win32::{
-            System::{
-                Com::{
-                    CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
-                },
+            System::Com::{
+                CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
             },
             UI::Accessibility::{
                 CUIAutomation, IUIAutomation, IUIAutomationLegacyIAccessiblePattern,
-                IUIAutomationTextPattern, IUIAutomationValuePattern, UIA_LegacyIAccessiblePatternId,
-                UIA_TextPattern2Id, UIA_TextPatternId, UIA_ValuePatternId,
+                IUIAutomationTextPattern, IUIAutomationValuePattern,
+                UIA_LegacyIAccessiblePatternId, UIA_TextPattern2Id, UIA_TextPatternId,
+                UIA_ValuePatternId,
             },
         },
     };
@@ -273,7 +279,10 @@ fn capture_via_windows_ui_automation() -> Option<String> {
             match CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER) {
                 Ok(a) => a,
                 Err(e) => {
-                    eprintln!("Ã¢ÂÅ’ [UI Automation] Failed to create CUIAutomation: {}", e);
+                    eprintln!(
+                        "Ã¢ÂÅ’ [UI Automation] Failed to create CUIAutomation: {}",
+                        e
+                    );
                     return None;
                 }
             };
@@ -281,7 +290,10 @@ fn capture_via_windows_ui_automation() -> Option<String> {
         let element = match automation.GetFocusedElement() {
             Ok(e) => e,
             Err(e) => {
-                eprintln!("Ã¢ÂÅ’ [UI Automation] Failed to get focused element: {}", e);
+                eprintln!(
+                    "Ã¢ÂÅ’ [UI Automation] Failed to get focused element: {}",
+                    e
+                );
                 return None;
             }
         };
@@ -362,7 +374,9 @@ fn capture_via_windows_ui_automation() -> Option<String> {
             // Log debug info
             let name = element.CurrentName().unwrap_or(BSTR::new());
             let class_name = element.CurrentClassName().unwrap_or(BSTR::new());
-            let control_type = element.CurrentControlType().unwrap_or(windows::Win32::UI::Accessibility::UIA_CONTROLTYPE_ID(0));
+            let control_type = element
+                .CurrentControlType()
+                .unwrap_or(windows::Win32::UI::Accessibility::UIA_CONTROLTYPE_ID(0));
 
             eprintln!(
                 "Ã¢Å¡ Ã¯Â¸Â  [UI Automation] Focused element does not support TextPattern. Name: '{}', Class: '{}', ControlType: {}",
@@ -574,12 +588,12 @@ fn trigger_copy_shortcut() {
 
 #[cfg(target_os = "windows")]
 fn trigger_copy_shortcut() {
+    use scopeguard::guard;
     use std::{thread, time::Duration};
+    use windows::Win32::System::Console::SetConsoleCtrlHandler;
     use windows::Win32::UI::Input::KeyboardAndMouse::{
         SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_C, VK_CONTROL,
     };
-    use windows::Win32::System::Console::SetConsoleCtrlHandler;
-    use scopeguard::guard;
 
     unsafe {
         // Set up a scope guard to temporarily ignore Ctrl+C signals

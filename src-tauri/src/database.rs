@@ -1,3 +1,4 @@
+use chrono::Utc;
 use rusqlite::{params, Connection, Error as RusqliteError, ErrorCode, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -141,16 +142,22 @@ impl Database {
     // 保存翻译记录
     pub fn save_translation(&self, record: &TranslationRecord) -> Result<i64> {
         let conn = self.conn.lock().unwrap();
+        let created_at = record
+            .created_at
+            .clone()
+            .unwrap_or_else(|| Utc::now().to_rfc3339());
+
         conn.execute(
             "INSERT INTO translation_history 
-             (original_text, translated_text, service, from_language, to_language)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
+             (original_text, translated_text, service, from_language, to_language, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
                 record.original_text,
                 record.translated_text,
                 record.service,
                 record.from_language,
-                record.to_language
+                record.to_language,
+                created_at
             ],
         )?;
         Ok(conn.last_insert_rowid())
@@ -165,9 +172,9 @@ impl Database {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             "SELECT id, original_text, translated_text, service, from_language, to_language, 
-                    datetime(created_at) as created_at
+                    created_at
              FROM translation_history 
-             ORDER BY created_at DESC
+             ORDER BY datetime(created_at) DESC
              LIMIT ?1 OFFSET ?2",
         )?;
 
@@ -199,10 +206,10 @@ impl Database {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             "SELECT id, original_text, translated_text, service, from_language, to_language, 
-                    datetime(created_at) as created_at
+                    created_at
              FROM translation_history 
              WHERE original_text LIKE ?1 OR translated_text LIKE ?1
-             ORDER BY created_at DESC
+             ORDER BY datetime(created_at) DESC
              LIMIT ?2",
         )?;
 

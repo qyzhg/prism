@@ -82,17 +82,47 @@ defineProps({
 
 defineEmits(['close', 'clear-history', 'copy-history', 'use-history'])
 
+const parseTimestamp = (timestamp) => {
+  if (!timestamp) return null
+
+  if (timestamp instanceof Date) {
+    return isNaN(timestamp.getTime()) ? null : timestamp
+  }
+
+  if (typeof timestamp === 'number') {
+    const fromNumber = new Date(timestamp)
+    return isNaN(fromNumber.getTime()) ? null : fromNumber
+  }
+
+  let normalized = String(timestamp).trim()
+  if (!normalized) return null
+
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(normalized)) {
+    normalized = normalized.replace(' ', 'T')
+  }
+
+  if (!/[zZ]|[+-]\d{2}:\d{2}$/.test(normalized)) {
+    normalized = `${normalized}Z`
+  }
+
+  const parsed = new Date(normalized)
+  return isNaN(parsed.getTime()) ? null : parsed
+}
+
 const formatTime = (timestamp) => {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diff = now - date
-  
+  const date = parseTimestamp(timestamp)
+  if (!date) {
+    return '未知时间'
+  }
+
+  const diff = Date.now() - date.getTime()
+
   if (diff < 60000) {
     return '刚刚'
   } else if (diff < 3600000) {
-    return `${Math.floor(diff / 60000)}分钟前`
+    return `${Math.max(1, Math.floor(diff / 60000))}分钟前`
   } else if (diff < 86400000) {
-    return `${Math.floor(diff / 3600000)}小时前`
+    return `${Math.max(1, Math.floor(diff / 3600000))}小时前`
   } else {
     return date.toLocaleDateString()
   }
