@@ -33,6 +33,25 @@ const getDefaultHotkeys = () => {
   };
 };
 
+const createDefaultProxy = () => ({
+  enabled: false,
+  mode: "system",
+  server: ""
+});
+
+const mergeProxyDefaults = (proxy) => {
+  const base = createDefaultProxy();
+  if (!proxy || typeof proxy !== "object") {
+    return base;
+  }
+  return {
+    ...base,
+    ...proxy,
+    mode: proxy.mode || base.mode,
+    server: typeof proxy.server === "string" ? proxy.server : base.server
+  };
+};
+
 const createDefaultConfig = () => ({
   translation: {
     service: "openai",
@@ -45,6 +64,7 @@ const createDefaultConfig = () => ({
     api_key: "",
     model_id: "gpt-4-vision-preview"
   },
+  proxy: createDefaultProxy(),
   hotkeys: getDefaultHotkeys()
 });
 
@@ -321,6 +341,7 @@ const showSettings = () => {
 const loadSettings = async () => {
   try {
     const config = await invoke('get_app_config')
+    config.proxy = mergeProxyDefaults(config.proxy)
     appConfig.value = config
     tempConfig.value = JSON.parse(JSON.stringify(config))
     
@@ -352,6 +373,7 @@ const handleKeydown = (event) => {
 const saveSettings = async (newConfig) => {
   // 如果没有传入newConfig，则使用tempConfig (兼容旧调用方式)
   const configToProcess = newConfig || tempConfig.value;
+  configToProcess.proxy = mergeProxyDefaults(configToProcess.proxy)
 
   if (!configToProcess?.translation?.api_key?.trim()) {
     saveMessage.value = { text: '请输入翻译API密钥', type: 'error' }
@@ -366,11 +388,22 @@ const saveSettings = async (newConfig) => {
     setTimeout(() => saveMessage.value = '', 3000)
     return
   }
+
+  if (
+    configToProcess?.proxy?.enabled &&
+    configToProcess?.proxy?.mode !== 'system' &&
+    !configToProcess?.proxy?.server?.trim()
+  ) {
+    saveMessage.value = { text: '请输入代理地址', type: 'error' }
+    setTimeout(() => saveMessage.value = '', 3000)
+    return
+  }
   
   isSaving.value = true
   try {
     // 准备要保存的配置
     const configToSave = JSON.parse(JSON.stringify(configToProcess))
+    configToSave.proxy = mergeProxyDefaults(configToSave.proxy)
     
     await invoke('save_app_config', { config: configToSave })
     

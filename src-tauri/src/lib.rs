@@ -26,6 +26,7 @@ use std::sync::Mutex;
 use system_tray::setup_system_tray;
 use tauri::Manager;
 use translation::{get_supported_languages, TranslationService};
+use http_client::configure_http_client;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -36,6 +37,25 @@ pub fn run() {
         .setup(|app| {
             let db = Database::new(app.handle()).expect("数据库初始化失败");
             let translation_service = TranslationService::OpenAI;
+
+            match db.get_app_config() {
+                Ok(Some(config)) => {
+                    if let Err(err) = configure_http_client(Some(&config.proxy)) {
+                        eprintln!("初始化代理配置失败: {}", err);
+                    }
+                }
+                Ok(None) => {
+                    if let Err(err) = configure_http_client(None) {
+                        eprintln!("使用默认HTTP客户端失败: {}", err);
+                    }
+                }
+                Err(err) => {
+                    eprintln!("加载初始配置失败: {}", err);
+                    if let Err(init_err) = configure_http_client(None) {
+                        eprintln!("使用默认HTTP客户端失败: {}", init_err);
+                    }
+                }
+            }
 
             app.manage(AppState {
                 db: Mutex::new(db),

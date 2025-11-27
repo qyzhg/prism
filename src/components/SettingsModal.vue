@@ -158,6 +158,52 @@
         </div>
         
         <div class="settings-section">
+          <div class="section-header">
+            <h4>网络设置</h4>
+            <label class="header-checkbox-label">
+              <input
+                type="checkbox"
+                v-model="localConfig.proxy.enabled"
+                class="setting-checkbox"
+              >
+              <span>使用代理</span>
+            </label>
+          </div>
+
+          <div v-if="localConfig.proxy.enabled">
+            <div class="setting-item">
+              <label class="setting-label">
+                <span>代理模式</span>
+                <select v-model="localConfig.proxy.mode" class="setting-select">
+                  <option value="system">使用系统代理</option>
+                  <option value="https">使用HTTPS代理</option>
+                  <option value="http">使用HTTP代理</option>
+                  <option value="socks5">使用SOCKS5代理</option>
+                </select>
+              </label>
+            </div>
+
+            <div
+              class="setting-item"
+              v-if="localConfig.proxy.mode !== 'system'"
+            >
+              <label class="setting-label">
+                <span>代理地址</span>
+                <input
+                  type="text"
+                  v-model="localConfig.proxy.server"
+                  class="setting-input"
+                  :placeholder="proxyPlaceholder"
+                >
+              </label>
+              <p class="setting-hint">
+                请输入完整的代理URL，例如 http://127.0.0.1:7890
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="settings-section">
           <h4>快捷键设置</h4>
           
           <div class="setting-item">
@@ -306,6 +352,11 @@ const defaultConfig = {
     model_id: "gpt-4-vision-preview",
     reuse_translation: false
   },
+  proxy: {
+    enabled: false,
+    mode: "system",
+    server: ""
+  },
   hotkeys: getDefaultHotkeys()
 }
 
@@ -323,6 +374,13 @@ const translationModelSelection = ref('')
 const ocrModelSelection = ref('')
 const showTranslationModelModal = ref(false)
 const showOcrModelModal = ref(false)
+const proxyPlaceholder = computed(() => {
+  const mode = localConfig.value?.proxy?.mode
+  if (mode === 'https') return 'https://127.0.0.1:7890'
+  if (mode === 'http') return 'http://127.0.0.1:7890'
+  if (mode === 'socks5') return 'socks5://127.0.0.1:7890'
+  return 'http://127.0.0.1:7890'
+})
 
 const getOcrConfigForFetch = () => {
   if (!localConfig.value) return { base_url: '', api_key: '' }
@@ -609,6 +667,15 @@ const saveSettings = () => {
     !payload.ocr?.api_key?.trim()
   ) {
     validationError.value = '请输入OCR API密钥'
+    return
+  }
+
+  if (
+    payload.proxy?.enabled &&
+    payload.proxy?.mode !== 'system' &&
+    !payload.proxy?.server?.trim()
+  ) {
+    validationError.value = '请输入代理地址'
     return
   }
 

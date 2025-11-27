@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TranslationRecord {
     pub id: Option<i64>,
     pub original_text: String,
@@ -21,7 +21,7 @@ fn default_service() -> String {
     "openai".to_string()
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TranslationConfig {
     #[serde(default = "default_service")]
     pub service: String,
@@ -30,7 +30,7 @@ pub struct TranslationConfig {
     pub model_id: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct OcrConfig {
     pub base_url: String,
     pub api_key: String,
@@ -38,7 +38,7 @@ pub struct OcrConfig {
     pub reuse_translation: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct HotkeyConfig {
     pub popup_window: String,
     pub slide_translation: String,
@@ -61,11 +61,45 @@ impl HotkeyConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum ProxyMode {
+    System,
+    Https,
+    Http,
+    Socks5,
+}
+
+impl Default for ProxyMode {
+    fn default() -> Self {
+        ProxyMode::System
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ProxyConfig {
+    pub enabled: bool,
+    pub mode: ProxyMode,
+    pub server: String,
+}
+
+impl Default for ProxyConfig {
+    fn default() -> Self {
+        ProxyConfig {
+            enabled: false,
+            mode: ProxyMode::System,
+            server: String::new(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppConfig {
     pub translation: TranslationConfig,
     pub ocr: OcrConfig,
     pub hotkeys: HotkeyConfig,
+    #[serde(default)]
+    pub proxy: ProxyConfig,
 }
 
 #[derive(Clone)]
@@ -354,6 +388,7 @@ impl Database {
                 reuse_translation: true,
             },
             hotkeys: HotkeyConfig::platform_default(),
+            proxy: ProxyConfig::default(),
         })
     }
 }
