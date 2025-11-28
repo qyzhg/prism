@@ -12,303 +12,343 @@
       </div>
       
       <div class="modal-body">
-        <div class="settings-section">
-          <h4>翻译设置</h4>
-          
-          <div class="setting-item">
-            <label class="setting-label">
-              <span>翻译服务</span>
-              <select v-model="localConfig.translation.service" class="setting-select">
-                <option value="openai">OpenAI兼容模式</option>
-<!--                <option value="google">Google 翻译</option>-->
-<!--                <option value="baidu">百度翻译</option>-->
-<!--                <option value="youdao">有道翻译</option>-->
-              </select>
-            </label>
-          </div>
-          
-          <div class="setting-item">
-            <label class="setting-label">
-              <span>API Base URL</span>
-              <input 
-                type="text" 
-                v-model="localConfig.translation.base_url"
-                class="setting-input"
-                placeholder="https://api.openai.com/v1"
-              >
-            </label>
-          </div>
-          
-          <div class="setting-item">
-            <label class="setting-label">
-              <span>API Key</span>
-              <input 
-                type="password" 
-                v-model="localConfig.translation.api_key"
-                class="setting-input"
-                placeholder="输入API密钥"
-              >
-            </label>
-          </div>
-          
-          <div class="setting-item">
-            <label class="setting-label">
-              <span>模型ID</span>
-              <div class="model-input-group">
-                <input 
-                  type="text" 
-                  v-model="localConfig.translation.model_id"
-                  class="setting-input"
-                  placeholder="gpt-5-nano"
-                >
-                <button
-                  type="button"
-                  class="model-fetch-btn"
-                  :disabled="!canFetchTranslationModels || translationModelsLoading"
-                  @click="openTranslationModelModal"
-                >
-                  获取
-                </button>
+        <div class="settings-section translation-card">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h4>翻译设置</h4>
               </div>
-            </label>
-            <!-- Removed inline select -->
-            <p
-              v-if="translationModelsError"
-              class="setting-hint setting-hint-error"
-            >
-              {{ translationModelsError }}
-            </p>
+              <span class="card-badge">
+                {{ localConfig.translation.service === 'openai' ? 'OpenAI兼容' : '自定义' }}
+              </span>
+            </div>
+
+            <div class="card-body">
+              <div class="card-grid">
+                <div class="setting-item grid-span-2">
+                  <label class="setting-label">
+                    <span>翻译服务</span>
+                    <select v-model="localConfig.translation.service" class="setting-select">
+                      <option value="openai">OpenAI兼容模式</option>
+<!--                      <option value="google">Google 翻译</option>-->
+<!--                      <option value="baidu">百度翻译</option>-->
+<!--                      <option value="youdao">有道翻译</option>-->
+                    </select>
+                  </label>
+                </div>
+
+                <div class="setting-item">
+                  <label class="setting-label">
+                    <span>API Base URL</span>
+                    <input 
+                      type="text" 
+                      v-model="localConfig.translation.base_url"
+                      class="setting-input"
+                      placeholder="https://api.openai.com/v1"
+                    >
+                  </label>
+                </div>
+
+                <div class="setting-item">
+                  <label class="setting-label">
+                    <span>API Key</span>
+                    <input 
+                      type="password" 
+                      v-model="localConfig.translation.api_key"
+                      class="setting-input"
+                      placeholder="输入API密钥"
+                    >
+                  </label>
+                </div>
+
+                <div class="setting-item grid-span-2">
+                  <label class="setting-label">
+                    <span>模型ID</span>
+                    <div class="model-input-group">
+                      <input 
+                        type="text" 
+                        v-model="localConfig.translation.model_id"
+                        class="setting-input"
+                        placeholder="gpt-5-nano"
+                      >
+                      <button
+                        type="button"
+                        class="model-fetch-btn"
+                        :disabled="!canFetchTranslationModels || translationModelsLoading"
+                        @click="openTranslationModelModal"
+                      >
+                        获取
+                      </button>
+                    </div>
+                  </label>
+                  <p
+                    v-if="translationModelsError"
+                    class="setting-hint setting-hint-error"
+                  >
+                    {{ translationModelsError }}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="settings-section">
-          <div class="section-header">
-            <h4>Token限制</h4>
-            <label class="header-checkbox-label">
-              <input 
-                type="checkbox" 
-                v-model="localConfig.token_limits.enable_user_max_tokens"
-                class="setting-checkbox"
-              >
-              <span>启用自定义上限</span>
-            </label>
-          </div>
-          <div 
-            class="setting-item"
-            v-if="localConfig.token_limits.enable_user_max_tokens"
-          >
-            <label class="setting-label">
-              <span>最大输出Token</span>
-              <input
-                type="number"
-                min="1000"
-                step="100"
-                class="setting-input"
-                v-model.number="localConfig.token_limits.user_max_tokens"
-                placeholder="4096"
-              >
-            </label>
-            <p class="setting-hint">
-              动态计算的max_tokens至少为{{ MIN_MAX_TOKENS }}，启用后不会超过自定义上限
-            </p>
-          </div>
-          <p
-            v-else
-            class="setting-hint"
-          >
-            启用自定义上限后可输入最大输出Token（不少于{{ MIN_MAX_TOKENS }}）
-          </p>
-        </div>
-
-        <div class="settings-section">
-
-          <div class="section-header">
-            <h4>OCR设置</h4>
-            <label class="header-checkbox-label">
-              <input 
-                type="checkbox" 
-                v-model="localConfig.ocr.reuse_translation"
-                class="setting-checkbox"
-              >
-              <span>复用翻译设置</span>
-            </label>
-          </div>
-          
-          <div v-if="!localConfig.ocr.reuse_translation">
-            <div class="setting-item">
-              <label class="setting-label">
-                <span>OCR Base URL</span>
+        <div class="settings-section token-card">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h4>Token限制</h4>
+              </div>
+              <label class="toggle-switch">
                 <input 
-                  type="text" 
-                  v-model="localConfig.ocr.base_url"
-                  class="setting-input"
-                  placeholder="https://api.openai.com/v1"
+                  type="checkbox" 
+                  v-model="localConfig.token_limits.enable_user_max_tokens"
+                  class="switch-input"
                 >
+                <span class="switch-track">
+                  <span class="switch-thumb"></span>
+                </span>
+                <span class="switch-label">启用自定义</span>
+              </label>
+            </div>
+
+            <div class="card-body">
+              <div 
+                class="setting-item"
+                v-if="localConfig.token_limits.enable_user_max_tokens"
+              >
+                <label class="setting-label">
+                  <span>最大输出Token</span>
+                  <input
+                    type="number"
+                    min="1000"
+                    step="100"
+                    class="setting-input"
+                    v-model.number="localConfig.token_limits.user_max_tokens"
+                    placeholder="4096"
+                  >
+                </label>
+                <p class="setting-hint">
+                  动态 max_tokens 至少为 {{ MIN_MAX_TOKENS }}，启用后不会超过此上限
+                </p>
+              </div>
+              <p
+                v-else
+                class="setting-hint"
+              >
+                关闭自定义时根据文本长度自动估算；开启后可输入自定义上限（不少于 {{ MIN_MAX_TOKENS }}）
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section ocr-card">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h4>OCR设置</h4>
+              </div>
+              <label class="toggle-switch">
+                <input 
+                  type="checkbox" 
+                  v-model="localConfig.ocr.reuse_translation"
+                  class="switch-input"
+                >
+                <span class="switch-track">
+                  <span class="switch-thumb"></span>
+                </span>
+                <span class="switch-label">复用翻译设置</span>
               </label>
             </div>
             
-            <div class="setting-item">
-              <label class="setting-label">
-                <span>OCR API Key</span>
-                <input 
-                  type="password" 
-                  v-model="localConfig.ocr.api_key"
-                  class="setting-input"
-                  placeholder="输入OCR API密钥"
-                >
-              </label>
-            </div>
-          </div>
-          
-          <div class="setting-item">
-            <label class="setting-label">
-              <span>OCR模型ID</span>
-              <div class="model-input-group">
-                <input 
-                  type="text" 
-                  v-model="localConfig.ocr.model_id"
-                  class="setting-input"
-                  placeholder="gpt-4-vision-preview"
-                >
-                <button
-                  type="button"
-                  class="model-fetch-btn"
-                  :disabled="!canFetchOcrModels || ocrModelsLoading"
-                  @click="openOcrModelModal"
-                >
-                  获取
-                </button>
+            <div class="card-body">
+              <div class="card-grid">
+                <template v-if="!localConfig.ocr.reuse_translation">
+                  <div class="setting-item">
+                    <label class="setting-label">
+                      <span>OCR Base URL</span>
+                      <input 
+                        type="text" 
+                        v-model="localConfig.ocr.base_url"
+                        class="setting-input"
+                        placeholder="https://api.openai.com/v1"
+                      >
+                    </label>
+                  </div>
+                  
+                  <div class="setting-item">
+                    <label class="setting-label">
+                      <span>OCR API Key</span>
+                      <input 
+                        type="password" 
+                        v-model="localConfig.ocr.api_key"
+                        class="setting-input"
+                        placeholder="输入OCR API密钥"
+                      >
+                    </label>
+                  </div>
+                </template>
+
+                <div class="setting-item grid-span-2">
+                  <label class="setting-label">
+                    <span>OCR模型ID</span>
+                    <div class="model-input-group">
+                      <input 
+                        type="text" 
+                        v-model="localConfig.ocr.model_id"
+                        class="setting-input"
+                        placeholder="gpt-4-vision-preview"
+                      >
+                      <button
+                        type="button"
+                        class="model-fetch-btn"
+                        :disabled="!canFetchOcrModels || ocrModelsLoading"
+                        @click="openOcrModelModal"
+                      >
+                        获取
+                      </button>
+                    </div>
+                  </label>
+                  <!-- Removed inline select -->
+                  <p
+                    v-if="ocrModelsError"
+                    class="setting-hint setting-hint-error"
+                  >
+                    {{ ocrModelsError }}
+                  </p>
+                  <p
+                    v-else-if="localConfig.ocr.reuse_translation"
+                    class="setting-hint"
+                  >
+                    当前复用翻译配置，将使用翻译的Base URL和API Key获取模型
+                  </p>
+                </div>
               </div>
-            </label>
-            <!-- Removed inline select -->
-            <p
-              v-if="ocrModelsError"
-              class="setting-hint setting-hint-error"
-            >
-              {{ ocrModelsError }}
-            </p>
-            <p
-              v-else-if="localConfig.ocr.reuse_translation"
-              class="setting-hint"
-            >
-              当前复用翻译配置，将使用翻译的Base URL和API Key获取模型
-            </p>
+            </div>
           </div>
         </div>
         
-        <div class="settings-section">
-          <div class="section-header">
-            <h4>网络设置</h4>
-            <label class="header-checkbox-label">
-              <input
-                type="checkbox"
-                v-model="localConfig.proxy.enabled"
-                class="setting-checkbox"
-              >
-              <span>使用代理</span>
-            </label>
-          </div>
-
-          <div v-if="localConfig.proxy.enabled">
-            <div class="setting-item">
-              <label class="setting-label">
-                <span>代理模式</span>
-                <select v-model="localConfig.proxy.mode" class="setting-select">
-                  <option value="system">使用系统代理</option>
-                  <option value="https">使用HTTPS代理</option>
-                  <option value="http">使用HTTP代理</option>
-                  <option value="socks5">使用SOCKS5代理</option>
-                </select>
+        <div class="settings-section network-card">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h4>网络设置</h4>
+              </div>
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  v-model="localConfig.proxy.enabled"
+                  class="switch-input"
+                >
+                <span class="switch-track">
+                  <span class="switch-thumb"></span>
+                </span>
+                <span class="switch-label">使用代理</span>
               </label>
             </div>
 
-            <div
-              class="setting-item"
-              v-if="localConfig.proxy.mode !== 'system'"
-            >
-              <label class="setting-label">
-                <span>代理地址</span>
-                <input
-                  type="text"
-                  v-model="localConfig.proxy.server"
-                  class="setting-input"
-                  :placeholder="proxyPlaceholder"
+            <div class="card-body">
+              <div v-if="localConfig.proxy.enabled" class="card-grid">
+                <div class="setting-item grid-span-2">
+                  <label class="setting-label">
+                    <span>代理模式</span>
+                    <select v-model="localConfig.proxy.mode" class="setting-select">
+                      <option value="system">使用系统代理</option>
+                      <option value="https">使用HTTPS代理</option>
+                      <option value="http">使用HTTP代理</option>
+                      <option value="socks5">使用SOCKS5代理</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div
+                  class="setting-item grid-span-2"
+                  v-if="localConfig.proxy.mode !== 'system'"
                 >
-              </label>
-              <p class="setting-hint">
-                请输入完整的代理URL，例如 http://127.0.0.1:7890
+                  <label class="setting-label">
+                    <span>代理地址</span>
+                    <input
+                      type="text"
+                      v-model="localConfig.proxy.server"
+                      class="setting-input"
+                      :placeholder="proxyPlaceholder"
+                    >
+                  </label>
+                  <p class="setting-hint">
+                    请输入完整的代理URL，例如 http://127.0.0.1:7890
+                  </p>
+                </div>
+              </div>
+              <p v-else class="setting-hint">
+                当前未启用代理，默认使用系统直连配置
               </p>
             </div>
           </div>
         </div>
         
-        <div class="settings-section">
-          <h4>快捷键设置</h4>
-          
-          <div class="setting-item">
-            <label class="setting-label">
-              <span>弹出窗口</span>
-              <HotkeyRecorder
-                v-model="localConfig.hotkeys.popup_window"
-                :placeholder="platformHotkeys.popup_window"
-              />
-            </label>
-            <p class="setting-hint">按下快捷键弹出翻译窗口</p>
-          </div>
-          
-          <div class="setting-item">
-            <label class="setting-label">
-              <span>划词翻译</span>
-              <HotkeyRecorder
-                v-model="localConfig.hotkeys.slide_translation"
-                :placeholder="platformHotkeys.slide_translation"
-              />
-            </label>
-            <p class="setting-hint">按下快捷键启动划词翻译</p>
-          </div>
-          
-          <div class="setting-item">
-            <label class="setting-label">
-              <span>截图翻译</span>
-              <HotkeyRecorder
-                v-model="localConfig.hotkeys.screenshot_translation"
-                :placeholder="platformHotkeys.screenshot_translation"
-              />
-            </label>
-            <p class="setting-hint">按下快捷键启动截图翻译</p>
+        <div class="settings-section hotkey-card">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h4>快捷键设置</h4>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <div class="card-grid">
+                <div class="setting-item">
+                  <label class="setting-label">
+                    <span>弹出窗口</span>
+                    <HotkeyRecorder
+                      v-model="localConfig.hotkeys.popup_window"
+                      :placeholder="platformHotkeys.popup_window"
+                    />
+                  </label>
+                  <p class="setting-hint">按下快捷键弹出翻译窗口</p>
+                </div>
+
+                <div class="setting-item">
+                  <label class="setting-label">
+                    <span>划词翻译</span>
+                    <HotkeyRecorder
+                      v-model="localConfig.hotkeys.slide_translation"
+                      :placeholder="platformHotkeys.slide_translation"
+                    />
+                  </label>
+                  <p class="setting-hint">按下快捷键启动划词翻译</p>
+                </div>
+
+                <div class="setting-item">
+                  <label class="setting-label">
+                    <span>截图翻译</span>
+                    <HotkeyRecorder
+                      v-model="localConfig.hotkeys.screenshot_translation"
+                      :placeholder="platformHotkeys.screenshot_translation"
+                    />
+                  </label>
+                  <p class="setting-hint">按下快捷键启动截图翻译</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
       
       <div class="modal-footer">
-        <div class="footer-left">
-          <div v-if="validationError" class="footer-message error">
-            {{ validationError }}
-          </div>
-          <div
-            v-else-if="saveMessage"
-            class="footer-message"
-            :class="typeof saveMessage === 'object' ? saveMessage.type : 'info'"
-          >
-            {{ typeof saveMessage === 'object' ? saveMessage.text : saveMessage }}
-          </div>
-        </div>
-        <div class="footer-actions">
-          <button class="btn btn-secondary" @click="resetToDefaults">
-            恢复默认
+        <button class="btn btn-secondary footer-reset" @click="resetToDefaults">
+          恢复默认
+        </button>
+        <div class="footer-right">
+          <button class="btn btn-secondary" @click="$emit('close')">
+            取消
           </button>
-          <div class="footer-right">
-            <button class="btn btn-secondary" @click="$emit('close')">
-              取消
-            </button>
-            <button
-              class="btn btn-primary"
-              :disabled="isSaving"
-              @click="saveSettings"
-            >
-              {{ isSaving ? '保存中...' : '保存' }}
-            </button>
-          </div>
+          <button
+            class="btn btn-primary"
+            :disabled="isSaving"
+            @click="saveSettings"
+          >
+            {{ isSaving ? '保存中...' : '保存' }}
+          </button>
         </div>
       </div>
     </div>
@@ -842,6 +882,67 @@ const saveSettings = () => {
   margin-bottom: 24px;
 }
 
+.translation-card .card,
+.token-card .card,
+.ocr-card .card,
+.network-card .card,
+.hotkey-card .card {
+  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 60%);
+  border: 1px solid #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 15px 25px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.card-header h4 {
+  margin: 0;
+}
+
+.card-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.card-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.12);
+  border-radius: 999px;
+  padding: 4px 12px;
+}
+
+.card-body {
+  padding: 18px 20px 20px;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.card-grid .setting-item {
+  margin-bottom: 0;
+}
+
+.grid-span-2 {
+  grid-column: span 2;
+}
+
+.card-grid .setting-label {
+  margin-bottom: 6px;
+}
+
 .settings-section:last-child {
   margin-bottom: 0;
 }
@@ -869,6 +970,52 @@ const saveSettings = () => {
   font-size: 14px;
   color: #374151;
   cursor: pointer;
+}
+
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.switch-input {
+  display: none;
+}
+
+.switch-track {
+  width: 40px;
+  height: 20px;
+  border-radius: 999px;
+  background: #d1d5db;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.switch-input:checked + .switch-track {
+  background: #3b82f6;
+}
+
+.switch-input:checked + .switch-track .switch-thumb {
+  transform: translateX(20px);
+}
+
+.switch-label {
+  font-size: 14px;
+  color: #1f2937;
 }
 
 .setting-item {
@@ -928,26 +1075,20 @@ const saveSettings = () => {
 
 .modal-footer {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
   align-items: center;
+  gap: 16px;
   padding: 16px 24px 20px;
   border-top: 1px solid #e5e7eb;
 }
 
-.footer-left {
-  flex: 1;
-}
-
-.footer-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .footer-right {
+  margin-left: auto;
   display: flex;
   gap: 12px;
+}
+
+.footer-reset {
+  flex-shrink: 0;
 }
 
 .footer-message {
@@ -1068,14 +1209,16 @@ const saveSettings = () => {
     width: 100%;
   }
   
-  .modal-footer {
-    flex-direction: column;
-    gap: 12px;
-  }
-  
   .footer-right {
-    width: 100%;
-    justify-content: flex-end;
+    width: auto;
+  }
+
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-span-2 {
+    grid-column: span 1;
   }
 }
 </style>

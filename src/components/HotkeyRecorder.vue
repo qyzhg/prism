@@ -23,9 +23,9 @@
       </span>
     </div>
     <button
-      v-if="modelValue"
       type="button"
       class="hotkey-clear"
+      :disabled="!modelValue"
       @click.stop="clearBinding"
     >
       清除
@@ -79,6 +79,9 @@ const preventDuringRecording = (event) => {
 }
 
 const clearBinding = () => {
+  if (!props.modelValue) {
+    return
+  }
   emit('update:modelValue', '')
 }
 
@@ -288,5 +291,11 @@ onBeforeUnmount(() => {
 
 .hotkey-clear:hover {
   background: #e5e7eb;
+}
+
+.hotkey-clear:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f5f5f5;
 }
 </style>
