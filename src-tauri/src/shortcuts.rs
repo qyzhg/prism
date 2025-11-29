@@ -197,7 +197,6 @@ fn capture_selected_text() -> Option<String> {
                 eprintln!(
                     "Ã¢ÂÅ’ [Capture] Skipping clipboard fallback on this platform (file path detected)"
                 );
-                return None;
             }
         }
     } else {
@@ -210,7 +209,6 @@ fn capture_selected_text() -> Option<String> {
             eprintln!(
                 "Ã¢ÂÅ’ [Capture] Primary selection capture failed and clipboard fallback is disabled"
             );
-            return None;
         }
     }
 
@@ -230,6 +228,8 @@ fn capture_selected_text() -> Option<String> {
             }
         }
     }
+
+    None
 }
 
 fn looks_like_file_path(text: &str) -> bool {
