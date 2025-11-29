@@ -285,6 +285,84 @@
             </div>
           </div>
         </div>
+
+        <div class="settings-section update-card">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h4>软件更新</h4>
+                <p class="card-subtitle">当前版本：{{ currentVersion || '加载中...' }}</p>
+              </div>
+              <button
+                class="btn btn-secondary"
+                type="button"
+                :disabled="isCheckingUpdate || isInstallingUpdate"
+                @click="handleManualUpdateCheck"
+              >
+                {{ isCheckingUpdate ? '检查中...' : '检查更新' }}
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="update-status-line">
+                <span :class="['update-status-pill', updateStatusClass]">
+                  {{ updateStatusMessage }}
+                </span>
+              </div>
+
+              <div
+                class="update-details"
+                v-if="availableUpdateInfo"
+              >
+                <p class="setting-hint">
+                  发现新版本：{{ availableUpdateInfo.version }}
+                  <span v-if="availableUpdateInfo.date">（{{ availableUpdateInfo.date }}）</span>
+                </p>
+                <p
+                  v-if="availableUpdateInfo.notes"
+                  class="update-notes"
+                >
+                  {{ availableUpdateInfo.notes }}
+                </p>
+              </div>
+
+              <div
+                v-if="showUpdateProgress"
+                class="update-progress"
+              >
+                <div class="update-progress-bar">
+                  <div
+                    class="update-progress-bar__value"
+                    :style="{ width: `${updateProgress}%` }"
+                  ></div>
+                </div>
+                <p class="setting-hint">
+                  {{ updateProgressLabel }}
+                </p>
+              </div>
+
+              <p
+                v-if="updateError"
+                class="setting-hint setting-hint-error"
+              >
+                {{ updateError }}
+              </p>
+
+              <div
+                class="update-actions"
+                v-if="canInstallUpdate"
+              >
+                <button
+                  class="btn btn-primary"
+                  type="button"
+                  :disabled="isInstallingUpdate"
+                  @click="downloadAndInstallUpdate"
+                >
+                  {{ isInstallingUpdate ? '正在更新...' : '立即安装' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
         
         <div class="settings-section hotkey-card">
           <div class="card">
@@ -377,8 +455,11 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
+import { getVersion } from '@tauri-apps/api/app'
+import { relaunch } from '@tauri-apps/plugin-process'
+import { check as checkForAppUpdates } from '@tauri-apps/plugin-updater'
 import HotkeyRecorder from './HotkeyRecorder.vue'
 import ModelSelectorModal from './ModelSelectorModal.vue'
 
@@ -459,6 +540,14 @@ const translationModelSelection = ref('')
 const ocrModelSelection = ref('')
 const showTranslationModelModal = ref(false)
 const showOcrModelModal = ref(false)
+const currentVersion = ref('')
+const updateState = ref('idle')
+const updateError = ref('')
+const updateProgress = ref(0)
+const availableUpdateInfo = ref(null)
+const totalDownloadBytes = ref(0)
+const downloadedBytes = ref(0)
+let pendingUpdate = null
 const proxyPlaceholder = computed(() => {
   const mode = localConfig.value?.proxy?.mode
   if (mode === 'https') return 'https://127.0.0.1:7890'
@@ -466,6 +555,194 @@ const proxyPlaceholder = computed(() => {
   if (mode === 'socks5') return 'socks5://127.0.0.1:7890'
   return 'http://127.0.0.1:7890'
 })
+
+const isCheckingUpdate = computed(() => updateState.value === 'checking')
+const isInstallingUpdate = computed(() => ['downloading', 'installing'].includes(updateState.value))
+const canInstallUpdate = computed(() => updateState.value === 'available')
+const showUpdateProgress = computed(() => ['downloading', 'installing'].includes(updateState.value))
+
+const updateStatusMessage = computed(() => {
+  switch (updateState.value) {
+    case 'checking':
+      return '正在检查更新...'
+    case 'available':
+      return availableUpdateInfo.value
+        ? `发现新版本 v${availableUpdateInfo.value.version}`
+        : '发现新版本'
+    case 'up-to-date':
+      return '当前已是最新版本'
+    case 'downloading':
+      return '正在下载更新...'
+    case 'installing':
+      return '正在安装更新...'
+    case 'installed':
+      return '更新已安装，将自动重启'
+    case 'error':
+      return '检查更新失败'
+    default:
+      return '尚未检查更新'
+  }
+})
+
+const updateStatusClass = computed(() => {
+  switch (updateState.value) {
+    case 'available':
+      return 'info'
+    case 'up-to-date':
+    case 'installed':
+      return 'success'
+    case 'error':
+      return 'error'
+    case 'downloading':
+    case 'installing':
+      return 'warning'
+    default:
+      return 'muted'
+  }
+})
+
+const updateProgressLabel = computed(() => {
+  if (!showUpdateProgress.value) {
+    return ''
+  }
+
+  if (totalDownloadBytes.value > 0) {
+    const downloaded = formatBytes(downloadedBytes.value)
+    const total = formatBytes(totalDownloadBytes.value)
+    return `下载进度：${updateProgress.value}%（${downloaded}/${total}）`
+  }
+
+  return `下载进度：${updateProgress.value}%`
+})
+
+const formatBytes = (bytes) => {
+  if (!bytes || Number.isNaN(bytes)) {
+    return '0 MB'
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+const formatUpdateDate = (value) => {
+  if (!value) return ''
+  try {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) {
+      return value
+    }
+    return date.toLocaleDateString()
+  } catch (error) {
+    console.warn('格式化更新日期失败', error)
+    return value
+  }
+}
+
+const parseErrorMessage = (error) => {
+  if (!error) return '未知错误'
+  if (typeof error === 'string') return error
+  if (error.message) return error.message
+  try {
+    return JSON.stringify(error)
+  } catch (_) {
+    return String(error)
+  }
+}
+
+const loadCurrentVersion = async () => {
+  try {
+    currentVersion.value = await getVersion()
+  } catch (error) {
+    console.warn('获取版本号失败', error)
+  }
+}
+
+const disposePendingUpdate = async () => {
+  if (!pendingUpdate) {
+    return
+  }
+  try {
+    await pendingUpdate.close()
+  } catch (error) {
+    console.warn('释放更新资源失败', error)
+  } finally {
+    pendingUpdate = null
+  }
+}
+
+const runUpdateCheck = async () => {
+  updateError.value = ''
+  updateProgress.value = 0
+  availableUpdateInfo.value = null
+  updateState.value = 'checking'
+
+  try {
+    const update = await checkForAppUpdates()
+    if (update) {
+      await disposePendingUpdate()
+      pendingUpdate = update
+      availableUpdateInfo.value = {
+        version: update.version,
+        notes: (update.body || '').trim(),
+        date: formatUpdateDate(update.date)
+      }
+      updateState.value = 'available'
+    } else {
+      await disposePendingUpdate()
+      updateState.value = 'up-to-date'
+    }
+  } catch (error) {
+    updateError.value = parseErrorMessage(error)
+    updateState.value = 'error'
+  }
+}
+
+const handleManualUpdateCheck = async () => {
+  if (isCheckingUpdate.value || isInstallingUpdate.value) {
+    return
+  }
+  await runUpdateCheck()
+}
+
+const downloadAndInstallUpdate = async () => {
+  if (!pendingUpdate || isInstallingUpdate.value) {
+    return
+  }
+
+  updateError.value = ''
+  updateState.value = 'downloading'
+  updateProgress.value = 0
+  downloadedBytes.value = 0
+  totalDownloadBytes.value = 0
+
+  try {
+    await pendingUpdate.downloadAndInstall((event) => {
+      if (event.event === 'Started') {
+        totalDownloadBytes.value = event.data.contentLength || 0
+        downloadedBytes.value = 0
+        updateProgress.value = totalDownloadBytes.value ? 0 : 10
+      } else if (event.event === 'Progress') {
+        downloadedBytes.value += event.data.chunkLength
+        if (totalDownloadBytes.value > 0) {
+          updateProgress.value = Math.min(
+            100,
+            Math.round((downloadedBytes.value / totalDownloadBytes.value) * 100)
+          )
+        } else {
+          updateProgress.value = Math.min(95, updateProgress.value + 1)
+        }
+      } else if (event.event === 'Finished') {
+        updateState.value = 'installing'
+        updateProgress.value = 100
+      }
+    })
+
+    updateState.value = 'installed'
+    await disposePendingUpdate()
+    await relaunch()
+  } catch (error) {
+    updateError.value = parseErrorMessage(error)
+    updateState.value = 'error'
+  }
+}
 
 const getOcrConfigForFetch = () => {
   if (!localConfig.value) return { base_url: '', api_key: '' }
@@ -533,6 +810,10 @@ const mergeWithDefaults = (config = {}) => {
   }
 }
 
+onMounted(() => {
+  loadCurrentVersion()
+})
+
 const syncLocalConfig = () => {
   const normalized = normalizeConfig(props.config)
   if (normalized) {
@@ -547,6 +828,7 @@ watch(
   (newShow) => {
     if (newShow) {
       syncLocalConfig()
+      loadCurrentVersion()
     }
   },
   { immediate: true }
@@ -886,6 +1168,7 @@ const saveSettings = () => {
 .token-card .card,
 .ocr-card .card,
 .network-card .card,
+.update-card .card,
 .hotkey-card .card {
   background: linear-gradient(135deg, #f8fafc 0%, #ffffff 60%);
   border: 1px solid #ffffff;
@@ -1071,6 +1354,85 @@ const saveSettings = () => {
   font-size: 12px;
   color: #6b7280;
   line-height: 1.4;
+}
+
+.update-status-line {
+  margin-bottom: 12px;
+}
+
+.update-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.update-status-pill.info {
+  background: rgba(59, 130, 246, 0.15);
+  color: #1d4ed8;
+}
+
+.update-status-pill.success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #047857;
+}
+
+.update-status-pill.warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+}
+
+.update-status-pill.error {
+  background: rgba(248, 113, 113, 0.15);
+  color: #b91c1c;
+}
+
+.update-status-pill.muted {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.update-details {
+  margin-bottom: 12px;
+}
+
+.update-notes {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #374151;
+  white-space: pre-line;
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.update-progress {
+  margin-top: 12px;
+}
+
+.update-progress-bar {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.update-progress-bar__value {
+  height: 100%;
+  background: #3b82f6;
+  transition: width 0.2s ease;
+}
+
+.update-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .modal-footer {

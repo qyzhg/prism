@@ -30,6 +30,14 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/qyzhg/prism/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ1MUZGMjI5NkJDMzcxQzMKUldURGNjTnJLZklmMVdOOVBzNnFNQVZMOXQzMzdLWHJ0a1JSZUM4YkhxVXBXZkMySDBid0Zyb1QK"
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

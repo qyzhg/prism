@@ -2,6 +2,9 @@
 import {computed, nextTick, onMounted, onUnmounted, ref} from "vue";
 import {invoke} from "@tauri-apps/api/core";
 import {getCurrentWindow} from "@tauri-apps/api/window";
+import {check as checkForAppUpdates} from "@tauri-apps/plugin-updater";
+import {confirm} from "@tauri-apps/plugin-dialog";
+import {relaunch} from "@tauri-apps/plugin-process";
 
 // 导入子组件
 import TitleBar from './components/TitleBar.vue'
@@ -127,6 +130,42 @@ const isSaving = ref(false);
 const saveMessage = ref("");
 const copyMessage = ref(null);
 let copyMessageTimer = null;
+
+let hasAutoCheckedUpdates = false;
+
+const autoCheckForAppUpdates = async () => {
+  if (hasAutoCheckedUpdates || import.meta.env.DEV) {
+    return;
+  }
+  hasAutoCheckedUpdates = true;
+  try {
+    const update = await checkForAppUpdates();
+    if (update) {
+      const shouldInstall = await confirm(
+        `检测到新版本 v${update.version}，是否立即下载并安装？`,
+        {
+          title: "发现新版本",
+          type: "info",
+          okLabel: "立即更新",
+          cancelLabel: "稍后"
+        }
+      );
+
+      if (shouldInstall) {
+        await update.downloadAndInstall();
+        await relaunch();
+      } else {
+        try {
+          await update.close();
+        } catch (error) {
+          console.warn("关闭更新资源失败:", error);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("自动更新检查失败:", error);
+  }
+};
 
 // 输入框引用
 const inputTextarea = ref(null);
@@ -638,6 +677,9 @@ const useHistoryItem = (item) => {
 onMounted(async () => {
   await loadSupportedLanguages();
   await loadSettings();
+  if (!import.meta.env.DEV) {
+    autoCheckForAppUpdates();
+  }
   autoResize();
   
   // 初始化表头和最下面的

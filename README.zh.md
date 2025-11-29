@@ -91,6 +91,56 @@ pnpm tauri dev
 pnpm tauri build
 ```
 
+## 自动更新 & 发布
+
+借助内置的 `tauri-plugin-updater` 插件和 `.github/workflows/release.yml`，项目可以通过 GitHub Releases 分发更新，并在客户端内自动检测/安装。
+
+### 1. 生成签名密钥
+
+Tauri Updater 需要对安装包进行签名：
+
+```bash
+pnpm tauri signer generate
+```
+
+命令会输出 **Private Key**、**Public Key** 以及可选的密码。请妥善保存：
+
+- `TAURI_PRIVATE_KEY`：复制整段私钥（含 BEGIN/END）到 GitHub 仓库的 Secrets。
+- `TAURI_PUBLIC_KEY`：复制公钥，分别配置在本地环境变量（构建或调试时导出）以及 GitHub Secrets 中。
+- `TAURI_KEY_PASSWORD`：如果生成密钥时设置了密码，也需要作为 Secret 写入。
+
+本地开发可在 shell 中导出公钥，例如：
+
+```bash
+export TAURI_PUBLIC_KEY="your-public-key"
+```
+
+### 2. 配置 GitHub Actions
+
+在仓库的 **Settings → Secrets and variables → Actions** 中新增：
+
+| 名称 | 说明 |
+| --- | --- |
+| `TAURI_PRIVATE_KEY` | 第一步生成的私钥内容 |
+| `TAURI_PUBLIC_KEY` | 与 `tauri.conf.json` 一致的公钥 |
+| `TAURI_KEY_PASSWORD` | 如果设置了密码则必填，未设置可留空 |
+
+`release` 工作流会在 macOS / Windows / Linux 三个平台构建应用、上传产物，并生成 `latest.json` 供客户端更新使用。
+
+### 3. 触发发布
+
+1. 更新 `package.json` 以及 `src-tauri/tauri.conf.json` 中的版本号。
+2. 提交并 push。
+3. 在 GitHub 上创建 **Release**（或手动触发 `Release` workflow）。
+
+工作流执行完成后，Release 页面会包含各平台安装包以及 `latest.json`。
+
+### 4. 客户端更新体验
+
+- 应用启动后会自动检查一次更新，并通过系统对话框提示是否下载。
+- “设置 → 软件更新” 中可以查看当前版本、手动检查以及执行更新，过程会展示下载进度。
+- 所有更新包都来自 GitHub Releases，并通过签名验证，确保来源可靠。
+
 ---
 
 ## 下载

@@ -1,21 +1,26 @@
-name: Release Builds
+name: Release
 
 on:
+  workflow_dispatch:
   release:
     types:
       - published
 
 jobs:
-  build-tauri:
+  build:
     permissions:
       contents: write
-    runs-on: ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        platform:
-          - macos-latest
-          - windows-latest
+        include:
+          - os: macos-latest
+            name: macOS
+          - os: windows-latest
+            name: Windows
+          - os: ubuntu-latest
+            name: Linux
 
     steps:
       - name: Checkout repository
@@ -30,37 +35,44 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
+          cache: "pnpm"
+
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install dependencies
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri
+
+      - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build and upload release artifacts
-        if: github.event_name == 'release'
+      - name: Build and upload release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          TAURI_PUBLIC_KEY: ${{ secrets.TAURI_PUBLIC_KEY }}
         with:
-          releaseId: ${{ github.event.release.id }}
           tauriScript: pnpm tauri
-
-      - name: Build and publish tagged release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: Prism ${{ github.ref_name }}
-          releaseBody: |
-            Automated release for `${{ github.ref_name }}` built from ${{ github.sha }}.
+          releaseId: ${{ github.event_name == 'release' && github.event.release.id || '' }}
+          tagName: ${{ github.event_name == 'release' && github.event.release.tag_name || 'v__VERSION__' }}
+          releaseName: ${{ github.event_name == 'release' && github.event.release.name || 'prism v__VERSION__' }}
+          releaseBody: ${{ github.event_name == 'release' && github.event.release.body || '自动构建的 Prism 桌面版本。' }}
           releaseDraft: false
-          prerelease: false
-          tauriScript: pnpm tauri
-
-      - name: Build (push to main/master)
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')
-        run: pnpm tauri build
+          prerelease: ${{ github.event_name == 'release' && github.event.release.prerelease || false }}
+          uploadUpdaterJson: true
