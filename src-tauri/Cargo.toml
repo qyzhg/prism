@@ -1,6 +1,6 @@
 [package]
 name = "prism"
-version = "0.9.11"
+version = "0.9.12"
 description = "全平台AI翻译软件"
 authors = ["qyzhg"]
 edition = "2021"
