@@ -153,6 +153,25 @@ watch(() => props.modelValue, (newVal) => {
   font-family: inherit;
   overflow-y: auto;
   box-sizing: border-box;
+  scrollbar-width: thin;
+  -ms-overflow-style: auto;
+}
+
+.input-textarea::-webkit-scrollbar {
+  width: 6px;
+}
+
+.input-textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.input-textarea::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.7);
+  border-radius: 4px;
+}
+
+.input-textarea::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.85);
 }
 
 .input-textarea:focus {

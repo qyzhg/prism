@@ -830,18 +830,17 @@ onUnmounted(() => {
 </template>
 
 <style>
-/* 全局隐藏滚动条 */
-::-webkit-scrollbar {
-  display: none;
-}
-
-* {
+/* 仅隐藏窗口滚动条，内部区域保持可滚动 */
+html,
+body {
+  overflow: hidden;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
 }
 
-html, body {
-  overflow: hidden;
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
 }
 </style>
 
