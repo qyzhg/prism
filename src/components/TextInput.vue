@@ -134,7 +134,7 @@ watch(() => props.modelValue, (newVal) => {
 
 .textarea-scroll {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .textarea-container {
