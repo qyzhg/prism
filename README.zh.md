@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**[中文](./README.zh.md) | [English](./README.md)**
+**[中文](./README.zh.md) | [English](./README.md) | [Español](./README.es.md) | [日本語](./README.ja.md) | [한국어](./README.ko.md) | [Tiếng Việt](./README.vi.md)**
 
 🚀 一款强大的跨平台AI翻译应用，采用先进的语言模型和OCR技术。
 
