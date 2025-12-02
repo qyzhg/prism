@@ -157,15 +157,16 @@ jobs:
           $webviewInstallerPath = Join-Path $packageRoot "MicrosoftEdgeWebView2RuntimeInstallerX64.exe"
           Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkID=2124701" -OutFile $webviewInstallerPath
 
-          $readme = @"
-Prism Portable v$env:APP_VERSION
-
-1. If WebView2 runtime is not installed, run MicrosoftEdgeWebView2RuntimeInstallerX64.exe once.
-2. Launch prism.exe.
-3. Your data lives in data\$($env:APP_IDENTIFIER)\trans.db. Copy this folder along with prism.exe to stay portable.
-"@
+          $readmeLines = @(
+            "Prism Portable v$env:APP_VERSION",
+            "",
+            "1. If WebView2 runtime is not installed, run MicrosoftEdgeWebView2RuntimeInstallerX64.exe once.",
+            "2. Launch prism.exe.",
+            "3. Your data lives in data\$($env:APP_IDENTIFIER)\trans.db. Copy this folder along with prism.exe to stay portable."
+          )
           $readmePath = Join-Path $packageRoot "PORTABLE-README.txt"
-          Set-Content -Path $readmePath -Value $readme -Encoding UTF8
+          $newline = [Environment]::NewLine
+          Set-Content -Path $readmePath -Value ($readmeLines -join $newline) -Encoding UTF8
 
           $zipPath = Join-Path $portableDir "$packageName.zip"
           if (Test-Path $zipPath) {
