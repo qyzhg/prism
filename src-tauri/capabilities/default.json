@@ -15,6 +15,7 @@
     "core:window:allow-set-always-on-top",
     "core:window:allow-hide",
     "global-shortcut:default",
+    "autostart:default",
     "updater:allow-check",
     "updater:allow-download-and-install"
   ]

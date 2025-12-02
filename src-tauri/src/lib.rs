@@ -38,6 +38,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .setup(|app| {
             let db = Database::new(app.handle()).expect("数据库初始化失败");
             let translation_service = TranslationService::OpenAI;

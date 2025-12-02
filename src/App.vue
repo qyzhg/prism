@@ -5,6 +5,7 @@ import {getCurrentWindow} from "@tauri-apps/api/window";
 import {check as checkForAppUpdates} from "@tauri-apps/plugin-updater";
 import {confirm} from "@tauri-apps/plugin-dialog";
 import {relaunch} from "@tauri-apps/plugin-process";
+import {enable as enableAutostart, disable as disableAutostart, isEnabled as isAutostartEnabled} from "@tauri-apps/plugin-autostart";
 
 // 导入子组件
 import TitleBar from './components/TitleBar.vue'
@@ -38,6 +39,10 @@ const getDefaultHotkeys = () => {
 
 const MIN_MAX_TOKENS = 1000;
 
+const createDefaultAutostartConfig = () => ({
+  enabled: false
+});
+
 const createDefaultProxy = () => ({
   enabled: false,
   mode: "system",
@@ -62,6 +67,18 @@ const mergeProxyDefaults = (proxy) => {
   };
 };
 
+const mergeAutostartConfig = (autostart) => {
+  const base = createDefaultAutostartConfig();
+  if (!autostart || typeof autostart !== "object") {
+    return base;
+  }
+  return {
+    ...base,
+    ...autostart,
+    enabled: Boolean(autostart.enabled)
+  };
+};
+
 const createDefaultConfig = () => ({
   translation: {
     service: "openai",
@@ -76,7 +93,8 @@ const createDefaultConfig = () => ({
   },
   proxy: createDefaultProxy(),
   hotkeys: getDefaultHotkeys(),
-  token_limits: createDefaultTokenLimits()
+  token_limits: createDefaultTokenLimits(),
+  autostart: createDefaultAutostartConfig()
 });
 
 const mergeConfigWithDefaults = (config = {}) => {
@@ -103,9 +121,13 @@ const mergeConfigWithDefaults = (config = {}) => {
     token_limits: {
       ...defaults.token_limits,
       ...(config.token_limits || {})
-    }
+    },
+    autostart: mergeAutostartConfig(config.autostart)
   };
 };
+
+const isTauriEnvironment = () =>
+  typeof window !== "undefined" && typeof window.__TAURI__ !== "undefined";
 
 // 响应式数据
 const inputText = ref("");
@@ -130,6 +152,63 @@ const isSaving = ref(false);
 const saveMessage = ref("");
 const copyMessage = ref(null);
 let copyMessageTimer = null;
+
+const ensureAutostartSection = (config) => {
+  if (!config) {
+    return createDefaultAutostartConfig();
+  }
+  if (!config.autostart || typeof config.autostart !== "object") {
+    config.autostart = createDefaultAutostartConfig();
+  } else {
+    config.autostart = mergeAutostartConfig(config.autostart);
+  }
+  return config.autostart;
+};
+
+const updateLocalAutostartState = (enabled) => {
+  if (appConfig.value) {
+    ensureAutostartSection(appConfig.value).enabled = enabled;
+  }
+  if (tempConfig.value) {
+    ensureAutostartSection(tempConfig.value).enabled = enabled;
+  }
+};
+
+const syncAutostartStateFromSystem = async () => {
+  if (!isTauriEnvironment()) {
+    return null;
+  }
+  try {
+    const enabled = await isAutostartEnabled();
+    updateLocalAutostartState(enabled);
+    return enabled;
+  } catch (error) {
+    console.warn("读取开机自启状态失败:", error);
+    return null;
+  }
+};
+
+const applyAutostartPreference = async (shouldEnable) => {
+  if (!isTauriEnvironment()) {
+    throw new Error("当前环境不支持开机自启设置");
+  }
+  if (shouldEnable) {
+    await enableAutostart();
+  } else {
+    await disableAutostart();
+  }
+};
+
+const parseErrorMessage = (error) => {
+  if (!error) return "未知错误";
+  if (typeof error === "string") return error;
+  if (error.message) return error.message;
+  try {
+    return JSON.stringify(error);
+  } catch (_) {
+    return String(error);
+  }
+};
 
 let hasAutoCheckedUpdates = false;
 
@@ -488,11 +567,13 @@ const loadSettings = async () => {
     const normalizedConfig = mergeConfigWithDefaults(config)
     appConfig.value = normalizedConfig
     tempConfig.value = JSON.parse(JSON.stringify(normalizedConfig))
-    
+
     // 从配置中初始化 useTranslationForOcr
     if (normalizedConfig.ocr && typeof normalizedConfig.ocr.reuse_translation !== 'undefined') {
         useTranslationForOcr.value = normalizedConfig.ocr.reuse_translation
     }
+
+    await syncAutostartStateFromSystem()
   } catch (error) {
     console.error('加载设置失败:', error)
     alert('加载配置失败: ' + error);
@@ -518,6 +599,7 @@ const saveSettings = async (newConfig) => {
   // 如果没有传入newConfig，则使用tempConfig (兼容旧调用方式)
   const configToProcess = mergeConfigWithDefaults(newConfig || tempConfig.value);
   configToProcess.proxy = mergeProxyDefaults(configToProcess.proxy)
+  configToProcess.autostart = mergeAutostartConfig(configToProcess.autostart)
 
   if (!configToProcess?.translation?.api_key?.trim()) {
     saveMessage.value = { text: '请输入翻译API密钥', type: 'error' }
@@ -563,9 +645,29 @@ const saveSettings = async (newConfig) => {
   }
   tokenLimits.user_max_tokens = Math.max(tokenLimits.user_max_tokens, MIN_MAX_TOKENS)
   configToProcess.token_limits = tokenLimits
+
+  const previousAutostartEnabled = Boolean(appConfig.value?.autostart?.enabled)
+  let desiredAutostartEnabled = Boolean(configToProcess.autostart?.enabled)
+  const userRequestedAutostartChange = desiredAutostartEnabled !== previousAutostartEnabled
+  let autostartChangeSuccess = true
+  let autostartErrorMessage = ''
   
   isSaving.value = true
   try {
+    if (userRequestedAutostartChange) {
+      try {
+        await applyAutostartPreference(desiredAutostartEnabled)
+      } catch (error) {
+        autostartChangeSuccess = false
+        autostartErrorMessage = parseErrorMessage(error)
+        desiredAutostartEnabled = previousAutostartEnabled
+      }
+    }
+
+    configToProcess.autostart = mergeAutostartConfig({
+      enabled: desiredAutostartEnabled
+    })
+
     // 准备要保存的配置
     const configToSave = JSON.parse(JSON.stringify(configToProcess))
     configToSave.proxy = mergeProxyDefaults(configToSave.proxy)
@@ -585,7 +687,10 @@ const saveSettings = async (newConfig) => {
     }
     
     hasChanges.value = false
-    saveMessage.value = { text: '设置已保存', type: 'success' }
+    const finalMessage = !autostartChangeSuccess && userRequestedAutostartChange
+      ? { text: `设置已保存，但开机自启设置更新失败：${autostartErrorMessage || '未知错误'}`, type: 'error' }
+      : { text: '设置已保存', type: 'success' }
+    saveMessage.value = finalMessage
     setTimeout(() => saveMessage.value = '', 3000)
   } catch (error) {
     console.error('保存设置详细错误:', error);

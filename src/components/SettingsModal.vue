@@ -286,6 +286,33 @@
           </div>
         </div>
 
+        <div class="settings-section startup-card">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h4>启动设置</h4>
+                <p class="card-subtitle">控制系统启动时是否自动运行</p>
+              </div>
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  v-model="localConfig.autostart.enabled"
+                  class="switch-input"
+                >
+                <span class="switch-track">
+                  <span class="switch-thumb"></span>
+                </span>
+                <span class="switch-label">开机启动</span>
+              </label>
+            </div>
+            <div class="card-body">
+              <p class="setting-hint">
+                启用后，应用会在系统登录完成后随系统自动启动，可直接从状态栏打开翻译窗口。
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div class="settings-section update-card">
           <div class="card">
             <div class="card-header">
@@ -535,6 +562,9 @@ const defaultConfig = {
   token_limits: {
     enable_user_max_tokens: false,
     user_max_tokens: 4096
+  },
+  autostart: {
+    enabled: false
   }
 }
 
@@ -860,6 +890,11 @@ const mergeWithDefaults = (config = {}) => {
     token_limits: {
       ...base.token_limits,
       ...(config.token_limits || {})
+    },
+    autostart: {
+      ...base.autostart,
+      ...(config.autostart || {}),
+      enabled: Boolean(config?.autostart?.enabled)
     }
   }
 }

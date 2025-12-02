@@ -115,6 +115,18 @@ impl Default for TokenLimitConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AutostartConfig {
+    #[serde(default)]
+    pub enabled: bool,
+}
+
+impl Default for AutostartConfig {
+    fn default() -> Self {
+        AutostartConfig { enabled: false }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppConfig {
     pub translation: TranslationConfig,
     pub ocr: OcrConfig,
@@ -123,6 +135,8 @@ pub struct AppConfig {
     pub proxy: ProxyConfig,
     #[serde(default)]
     pub token_limits: TokenLimitConfig,
+    #[serde(default)]
+    pub autostart: AutostartConfig,
 }
 
 #[derive(Clone)]
@@ -413,6 +427,7 @@ impl Database {
             hotkeys: HotkeyConfig::platform_default(),
             proxy: ProxyConfig::default(),
             token_limits: TokenLimitConfig::default(),
+            autostart: AutostartConfig::default(),
         })
     }
 }
