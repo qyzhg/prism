@@ -1,7 +1,7 @@
 <script setup>
 import {computed, nextTick, onMounted, onUnmounted, ref} from "vue";
 import {invoke} from "@tauri-apps/api/core";
-import {getCurrentWindow} from "@tauri-apps/api/window";
+import {getCurrentWindow, PhysicalSize} from "@tauri-apps/api/window";
 import {check as checkForAppUpdates} from "@tauri-apps/plugin-updater";
 import {confirm} from "@tauri-apps/plugin-dialog";
 import {relaunch} from "@tauri-apps/plugin-process";
@@ -129,6 +129,10 @@ const mergeConfigWithDefaults = (config = {}) => {
 const isTauriEnvironment = () =>
   typeof window !== "undefined" && typeof window.__TAURI__ !== "undefined";
 
+const WINDOW_SIZE_SETTING_KEY = "window_size";
+const WINDOW_SIZE_SAVE_DELAY = 400;
+const MIN_WINDOW_DIMENSION = 200;
+
 // 响应式数据
 const inputText = ref("");
 const translatedText = ref("");
@@ -152,6 +156,8 @@ const isSaving = ref(false);
 const saveMessage = ref("");
 const copyMessage = ref(null);
 let copyMessageTimer = null;
+let windowSizeSaveTimer = null;
+let windowResizeUnlisten = null;
 
 const ensureAutostartSection = (config) => {
   if (!config) {
@@ -483,6 +489,108 @@ const hideToTray = async () => {
   }
 };
 
+const normalizeWindowSize = (size) => {
+  if (!size || typeof size !== 'object') {
+    return null;
+  }
+  const width = Number(size.width);
+  const height = Number(size.height);
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    return null;
+  }
+  return {
+    width: Math.max(MIN_WINDOW_DIMENSION, Math.round(width)),
+    height: Math.max(MIN_WINDOW_DIMENSION, Math.round(height))
+  };
+};
+
+const persistWindowSize = async (size) => {
+  if (!isTauriEnvironment()) {
+    return;
+  }
+  const normalized = normalizeWindowSize(size);
+  if (!normalized) {
+    return;
+  }
+  try {
+    await invoke('save_setting', {
+      key: WINDOW_SIZE_SETTING_KEY,
+      value: JSON.stringify(normalized)
+    });
+  } catch (error) {
+    console.error('保存窗口大小失败:', error);
+  }
+};
+
+const scheduleWindowSizeSave = (size) => {
+  if (!size) {
+    return;
+  }
+  if (windowSizeSaveTimer) {
+    clearTimeout(windowSizeSaveTimer);
+  }
+  const snapshot = { width: size.width, height: size.height };
+  windowSizeSaveTimer = setTimeout(() => {
+    persistWindowSize(snapshot);
+  }, WINDOW_SIZE_SAVE_DELAY);
+};
+
+const restoreWindowSize = async () => {
+  if (!isTauriEnvironment()) {
+    return;
+  }
+  try {
+    const savedSize = await invoke('get_setting', { key: WINDOW_SIZE_SETTING_KEY });
+    if (!savedSize) {
+      return;
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(savedSize);
+    } catch (error) {
+      console.warn('解析窗口大小失败:', error);
+      return;
+    }
+    const normalized = normalizeWindowSize(parsed);
+    if (!normalized) {
+      return;
+    }
+    const window = getCurrentWindow();
+    await window.setSize(new PhysicalSize(normalized.width, normalized.height));
+  } catch (error) {
+    console.error('恢复窗口大小失败:', error);
+  }
+};
+
+const setupWindowSizePersistence = async () => {
+  if (!isTauriEnvironment()) {
+    return;
+  }
+  await restoreWindowSize();
+  try {
+    const window = getCurrentWindow();
+    windowResizeUnlisten = await window.onResized(({ payload }) => {
+      if (!payload) {
+        return;
+      }
+      scheduleWindowSizeSave(payload);
+    });
+  } catch (error) {
+    console.error('监听窗口大小变化失败:', error);
+  }
+};
+
+const teardownWindowSizePersistence = () => {
+  if (windowResizeUnlisten) {
+    windowResizeUnlisten();
+    windowResizeUnlisten = null;
+  }
+  if (windowSizeSaveTimer) {
+    clearTimeout(windowSizeSaveTimer);
+    windowSizeSaveTimer = null;
+  }
+};
+
 // 区域截图功能
 const areaScreenshot = async () => {
   try {
@@ -782,6 +890,7 @@ const useHistoryItem = (item) => {
 onMounted(async () => {
   await loadSupportedLanguages();
   await loadSettings();
+  await setupWindowSizePersistence();
   if (!import.meta.env.DEV) {
     autoCheckForAppUpdates();
   }
@@ -847,6 +956,7 @@ onMounted(async () => {
 onUnmounted(() => {
   // 移除键盘事件监听器
   document.removeEventListener('keydown', handleKeydown);
+  teardownWindowSizePersistence();
   if (copyMessageTimer) {
     clearTimeout(copyMessageTimer);
     copyMessageTimer = null;
