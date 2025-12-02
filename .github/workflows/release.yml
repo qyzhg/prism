@@ -77,3 +77,115 @@ jobs:
           releaseDraft: false
           prerelease: ${{ github.event_name == 'release' && github.event.release.prerelease || false }}
           uploadUpdaterJson: true
+
+  portable:
+    name: Windows Portable
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend assets
+        run: pnpm build
+
+      - name: Build portable binary
+        run: cargo build --manifest-path src-tauri/Cargo.toml --release --features portable
+
+      - name: Read app metadata
+        id: portable_meta
+        shell: pwsh
+        run: |
+          $config = Get-Content -Raw src-tauri/tauri.conf.json | ConvertFrom-Json
+          $version = if ($config.version) { $config.version } else { "0.0.0" }
+          $identifier = if ($config.identifier) { $config.identifier } else { "prism-portable" }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
+          "identifier=$identifier" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
+
+      - name: Package portable build
+        id: package_portable
+        shell: pwsh
+        env:
+          APP_VERSION: ${{ steps.portable_meta.outputs.version }}
+          APP_IDENTIFIER: ${{ steps.portable_meta.outputs.identifier }}
+        run: |
+          $packageName = "prism-portable-v$env:APP_VERSION-windows"
+          $portableDir = Join-Path $env:GITHUB_WORKSPACE "portable"
+          New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
+          $packageRoot = Join-Path $portableDir $packageName
+          New-Item -ItemType Directory -Force -Path $packageRoot | Out-Null
+
+          Copy-Item "src-tauri\target\release\prism.exe" -Destination $packageRoot -Force
+
+          $dataRoot = Join-Path $packageRoot "data"
+          New-Item -ItemType Directory -Force -Path $dataRoot | Out-Null
+          $dataDir = Join-Path $dataRoot $env:APP_IDENTIFIER
+          New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
+          $dbPath = Join-Path $dataDir "trans.db"
+          $dbSeed = Join-Path $env:GITHUB_WORKSPACE "identifier.sqlite"
+          if (Test-Path $dbSeed) {
+            Copy-Item $dbSeed -Destination $dbPath -Force
+          } else {
+            New-Item -ItemType File -Path $dbPath -Force | Out-Null
+          }
+
+          $webviewInstallerPath = Join-Path $packageRoot "MicrosoftEdgeWebView2RuntimeInstallerX64.exe"
+          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkID=2124701" -OutFile $webviewInstallerPath
+
+          $readme = @"
+Prism Portable v$env:APP_VERSION
+
+1. If WebView2 runtime is not installed, run MicrosoftEdgeWebView2RuntimeInstallerX64.exe once.
+2. Launch prism.exe.
+3. Your data lives in data\$($env:APP_IDENTIFIER)\trans.db. Copy this folder along with prism.exe to stay portable.
+"@
+          $readmePath = Join-Path $packageRoot "PORTABLE-README.txt"
+          Set-Content -Path $readmePath -Value $readme -Encoding UTF8
+
+          $zipPath = Join-Path $portableDir "$packageName.zip"
+          if (Test-Path $zipPath) {
+            Remove-Item $zipPath -Force
+          }
+          Compress-Archive -Path $packageRoot -DestinationPath $zipPath -Force
+
+          "zip_path=$zipPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
+          "zip_name=$packageName" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
+
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package_portable.outputs.zip_name }}
+          path: ${{ steps.package_portable.outputs.zip_path }}
+
+      - name: Attach portable zip to release
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          ZIP_PATH: ${{ steps.package_portable.outputs.zip_path }}
+        run: gh release upload "$env:RELEASE_TAG" "$env:ZIP_PATH" --clobber

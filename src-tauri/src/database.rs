@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
+use tauri::Manager;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TranslationRecord {
@@ -442,6 +443,17 @@ fn io_to_rusqlite_error(err: std::io::Error) -> RusqliteError {
     )
 }
 
+#[cfg(feature = "portable")]
+fn resolve_app_data_dir(app_handle: &AppHandle) -> std::io::Result<PathBuf> {
+    let mut exe_dir = std::env::current_exe()?;
+    exe_dir.pop();
+
+    // Keep data inside the portable directory so everything travels together.
+    let identifier = app_handle.config().identifier.clone();
+    Ok(exe_dir.join("data").join(identifier))
+}
+
+#[cfg(not(feature = "portable"))]
 fn resolve_app_data_dir(app_handle: &AppHandle) -> std::io::Result<PathBuf> {
     if let Ok(dir) = app_handle.path().app_data_dir() {
         return Ok(dir);

@@ -94,6 +94,16 @@ pnpm tauri dev
 pnpm tauri build
 ```
 
+### Portable build (Windows)
+
+If you need a no-installer build, bundle the frontend and compile the Rust binary directly:
+
+```bash
+pnpm portable
+```
+
+Grab `src-tauri/target/release/prism.exe` with the adjacent `data/com.qyzhg.prism` folder and distribute them together. All settings and the SQLite database live inside that `data` directory, so copying the folder keeps everything portable.
+
 ---
 
 ## Download

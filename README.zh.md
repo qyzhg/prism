@@ -91,6 +91,16 @@ pnpm tauri dev
 pnpm tauri build
 ```
 
+### 便携版构建（Windows）
+
+如果需要绿色免安装版本，可以先打包前端资源再编译 Rust 产物：
+
+```bash
+pnpm portable
+```
+
+`src-tauri/target/release/prism.exe` 及其同级 `data/com.qyzhg.prism` 文件夹即可直接分发；数据库和配置会放在 `data` 目录内，拷贝整个文件夹即可携带所有设置。
+
 ## 自动更新 & 发布
 
 借助内置的 `tauri-plugin-updater` 插件和 `.github/workflows/release.yml`，项目可以通过 GitHub Releases 分发更新，并在客户端内自动检测/安装。
