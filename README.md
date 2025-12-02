@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**[English](./README.md) | [中文](./README.zh.md)**
+**[English](./README.md) | [中文](./README.zh.md) | [Español](./README.es.md) | [日本語](./README.ja.md) | [한국어](./README.ko.md) | [Tiếng Việt](./README.vi.md)**
 
 🚀 A powerful cross-platform AI translation application powered by advanced language models and OCR technology.
 
