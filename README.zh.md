@@ -16,8 +16,8 @@
 ## 功能特性
 
 - **🌍 跨平台支持** - 完美支持 Windows、macOS 和 Linux，功能完全一致
-- **🤖 先进的AI翻译** - 采用腾讯混元-MT-7B模型，提供准确的上下文感知翻译
-- **📸 内置OCR识别** - 使用Qwen3-VL-8B-Instruct直接从截图提取并翻译文本
+- **🤖 先进的AI翻译** - 完全自由的ai配置接口
+- **📸 内置OCR识别** - 完全自由的ai配置接口
 - **⚡ 极速翻译** - 实时翻译，延迟最小化
 - **🎯 易用的界面** - 基于Vue 3的直观用户界面，交互流畅
 - **🔗 全局快捷键** - 自定义快捷键快速访问（开发中）
@@ -42,8 +42,8 @@
 
 ### AI与处理
 
-- **翻译模型** - 腾讯混元 Hunyuan-MT-7B
-- **OCR模型** - Qwen3-VL-8B-Instruct
+- **推荐翻译模型** - Qwen3-Next-80B-A3B-Instruct
+- **OCR模型** - Qwen3-VL-30B-A3B-Instruct
 - **API提供商** - 硅基流动 (SiliconFlow)
 - **完全支持openai协议的所有AI自定义**
 
@@ -181,8 +181,8 @@ export TAURI_PUBLIC_KEY="your-public-key"
 
 ### AI模型
 
-- **翻译模型** - `tencent/Hunyuan-MT-7B` 企业级多语言翻译
-- **OCR模型** - `Qwen/Qwen3-VL-8B-Instruct` 高级视觉语言理解
+- **翻译模型** - `Qwen/Qwen3-Next-80B-A3B-Instruct` 企业级多语言翻译
+- **OCR模型** - `Qwen/Qwen3-VL-30B-A3B-Instruct` 高级视觉语言理解
 
 ---
 
